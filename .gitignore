@@ -1,0 +1,8 @@
+target/
+.idea/
+*.iml
+.vscode/
+.DS_Store
+# Local database credentials
+src/main/resources/application-local.yml
+logs/
