@@ -5,6 +5,7 @@ public enum ErrorCode {
     UNAUTHORIZED(401, "未登录或 token 无效"),
     FORBIDDEN(403, "无权限"),
     NOT_FOUND(404, "资源不存在"),
+    USERNAME_EXISTS(409, "用户名已存在"),
     INTERNAL_ERROR(500, "服务器内部错误");
 
     private final int code;
