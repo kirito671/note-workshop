@@ -1,5 +1,6 @@
 package com.example.noteworkshop.service;
-
+import com.example.noteworkshop.dto.UpdateProfileRequest;
+import com.example.noteworkshop.security.UserContext;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.example.noteworkshop.dto.RegisterRequest;
 import com.example.noteworkshop.entity.User;
@@ -13,6 +14,7 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
 public class UserService {
@@ -20,10 +22,16 @@ public class UserService {
 
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
+    private final FileStorageService fileStorageService;
 
-    public UserService(UserMapper userMapper, PasswordEncoder passwordEncoder) {
+    public UserService(
+            UserMapper userMapper,
+            PasswordEncoder passwordEncoder,
+            FileStorageService fileStorageService
+    ) {
         this.userMapper = userMapper;
         this.passwordEncoder = passwordEncoder;
+        this.fileStorageService = fileStorageService;
     }
 
     @Transactional
@@ -68,5 +76,72 @@ public class UserService {
                 savedUser.getStatus(),
                 savedUser.getCreatedAt()
         );
+    }
+    public UserProfileVO getCurrentProfile() {
+        return toProfileVO(requireCurrentUser());
+    }
+
+    @Transactional
+    public UserProfileVO updateCurrentProfile(UpdateProfileRequest request) {
+        User user = requireCurrentUser();
+        String nickname = request.nickname().trim();
+
+        userMapper.update(
+                null,
+                Wrappers.<User>lambdaUpdate()
+                        .eq(User::getId, user.getId())
+                        .set(User::getNickname, nickname)
+        );
+
+        User updatedUser = userMapper.selectById(user.getId());
+        if (updatedUser == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "用户不存在");
+        }
+
+        log.info("User profile updated, id={}", updatedUser.getId());
+        return toProfileVO(updatedUser);
+    }
+
+    private User requireCurrentUser() {
+        Long userId = UserContext.get().id();
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "用户不存在");
+        }
+        return user;
+    }
+
+    private UserProfileVO toProfileVO(User user) {
+        return new UserProfileVO(
+                user.getId(),
+                user.getUsername(),
+                user.getNickname(),
+                user.getAvatarUrl(),
+                user.getRole(),
+                user.getStatus(),
+                user.getCreatedAt()
+        );
+    }
+    @Transactional
+    public UserProfileVO updateCurrentAvatar(MultipartFile file){
+        User user = requireCurrentUser();
+
+        String avatarUrl = fileStorageService.storeAvatar(user.getId(), file);
+
+        userMapper.update(
+                null,
+                Wrappers.<User>lambdaUpdate()
+                        .eq(User::getId, user.getId())
+                        .set(User::getAvatarUrl, avatarUrl)
+        );
+
+        User updatedUser = userMapper.selectById(user.getId());
+        if (updatedUser == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "用户不存在");
+        }
+
+        log.info("User avatar updated, id={}", updatedUser.getId());
+        return toProfileVO(updatedUser);
+
     }
 }

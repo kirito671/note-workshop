@@ -6,3 +6,4 @@ target/
 # Local database credentials
 src/main/resources/application-local.yml
 logs/
+uploads/

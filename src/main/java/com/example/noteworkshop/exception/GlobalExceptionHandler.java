@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -31,6 +32,14 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.failure(ErrorCode.VALIDATION_ERROR.getCode(), message));
     }
 
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMaxUploadSizeExceededException(
+            MaxUploadSizeExceededException exception
+    ) {
+        log.warn("Upload rejected because file exceeds multipart limit");
+        return ResponseEntity.badRequest()
+                .body(ApiResponse.failure(ErrorCode.VALIDATION_ERROR.getCode(), "上传文件过大"));
+    }
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleUnexpectedException(Exception exception) {
         log.error("Unhandled server exception", exception);

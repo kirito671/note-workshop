@@ -6,6 +6,10 @@ spring:
     name: note-workshop
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:local}
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
   datasource:
     url: ${DB_URL:jdbc:mysql://localhost:3306/note_workshop?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false}
     username: ${DB_USERNAME:note_app}
@@ -30,6 +34,9 @@ app:
   jwt:
     secret: ${JWT_SECRET}
     expiration-minutes: ${JWT_EXPIRATION_MINUTES:120}
+  upload:
+    dir: ${UPLOAD_DIR:uploads}
+    max-avatar-size-bytes: ${MAX_AVATAR_SIZE_BYTES:5242880}
 
 logging:
   level:

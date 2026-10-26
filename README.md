@@ -14,7 +14,7 @@ Controller -> Service -> Mapper -> MySQL
 
 ## 当前进度
 
-当前已完成 P0-3 用户认证模块，已具备：
+当前已完成 P0-4 用户资料与头像上传模块，已具备：
 
 - Spring Boot 项目骨架
 - Maven 构建配置
@@ -25,18 +25,21 @@ Controller -> Service -> Mapper -> MySQL
 - 自定义业务异常 `BusinessException`
 - 全局异常处理
 - 参数校验异常处理
+- 上传文件超限异常处理
 - SLF4J + Logback 控制台与滚动文件日志
 - 用户注册与 BCrypt 密码加密
 - 用户登录与 JWT 生成
 - JWT Interceptor 鉴权
 - `UserContext` 当前用户线程上下文
-- 注册、登录、JWT 拦截器相关 MockMvc 测试
+- 当前用户资料查询和昵称修改
+- 头像上传、格式校验、大小校验和 UUID 文件名
+- 本地头像存储与 `/uploads/**` 静态访问
+- 注册、登录、JWT、资料、头像上传相关 MockMvc 测试
+
+P0-5 读书笔记模块目前只创建了空的 `Note`、`NoteImage` 实体和 Mapper 骨架，CRUD 和接口尚未实现。
 
 ### 尚未实现
 
-以下功能仍在后续阶段，不应视为当前已完成功能：
-
-- 个人资料修改与头像上传
 - 读书笔记 CRUD、分页、私有/公开和多图上传
 - 点赞、点赞列表和排行
 - 管理员后台和审核流
@@ -58,6 +61,7 @@ Controller -> Service -> Mapper -> MySQL
 - Jakarta Validation
 - BCrypt（spring-security-crypto）
 - JJWT 0.12.6
+- 本地文件存储
 
 后续计划：
 
@@ -71,6 +75,7 @@ Controller -> Service -> Mapper -> MySQL
 ```text
 POST /api/auth/register
 POST /api/auth/login
+GET  /uploads/**
 ```
 
 受保护接口：
@@ -79,14 +84,19 @@ POST /api/auth/login
 /api/**
 ```
 
+用户资料接口：
+
+```text
+GET  /api/users/me
+PUT  /api/users/me
+POST /api/users/me/avatar
+```
+
 访问受保护接口时需要携带：
 
 ```text
 Authorization: Bearer <token>
 ```
-
-注册成功会返回用户 ID、用户名、昵称、角色和创建时间，不返回密码。  
-登录成功会返回 JWT、`Bearer` 类型和有效分钟数。
 
 ## 目录结构
 
@@ -141,12 +151,16 @@ DB_PASSWORD
 SPRING_PROFILES_ACTIVE
 JWT_SECRET
 JWT_EXPIRATION_MINUTES
+UPLOAD_DIR
+MAX_AVATAR_SIZE_BYTES
 ```
 
 说明：
 
 - `JWT_SECRET` 至少需要 32 字节，不能提交到 Git。
 - `JWT_EXPIRATION_MINUTES` 默认 120 分钟。
+- `UPLOAD_DIR` 默认 `uploads`，上传目录不会提交到 Git。
+- `MAX_AVATAR_SIZE_BYTES` 默认 5242880。
 - 本地数据库密码可以放在 `src/main/resources/application-local.yml`，该文件已被 `.gitignore` 忽略。
 
 ## 运行方式
@@ -182,14 +196,17 @@ mvn test
 - 禁用账号 403
 - JWT Interceptor 无 token、有效 token、无效 token
 - ThreadLocal 设置和清理
+- 当前用户资料查询和昵称修改
+- 有效 PNG 头像上传和静态 URL 访问
+- 非图片文件、无 token、超大文件上传失败场景
 
 当前测试结果：
 
 ```text
-Tests run: 16, Failures: 0, Errors: 0
+Tests run: 20, Failures: 0, Errors: 0
 BUILD SUCCESS
 ```
 
 ## 说明
 
-当前版本已完成用户认证与基础异常处理，不包含完整业务功能和前端页面。仓库会继续更新，最终验收以答辩时提交的版本为准。
+当前版本已完成用户认证、个人资料和头像上传，不包含读书笔记、点赞、管理员、社区互动、AI 和正式前端。仓库会继续更新，最终验收以答辩时提交的版本为准。
