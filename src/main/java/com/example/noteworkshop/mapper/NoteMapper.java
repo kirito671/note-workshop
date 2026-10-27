@@ -1,4 +1,7 @@
 package com.example.noteworkshop.mapper;
 
-public interface NoteMapper {
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.example.noteworkshop.entity.Note;
+
+public interface NoteMapper extends BaseMapper<Note> {
 }
