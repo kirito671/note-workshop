@@ -1,6 +1,8 @@
 package com.example.noteworkshop.verification;
 
 import com.example.noteworkshop.dto.RegisterRequest;
+import com.example.noteworkshop.entity.Note;
+import com.example.noteworkshop.mapper.NoteMapper;
 import com.example.noteworkshop.service.UserService;
 import com.example.noteworkshop.vo.UserProfileVO;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -39,6 +41,9 @@ class NoteLikeDisplayIntegrationTest {
 
     @Autowired
     private UserService userService;
+
+    @Autowired
+    private NoteMapper noteMapper;
 
     @Test
     void shouldReturnZeroLikeStateForUnlikedNoteDetail() throws Exception {
@@ -231,10 +236,11 @@ class NoteLikeDisplayIntegrationTest {
                 .andExpect(jsonPath("$.code").value(0))
                 .andReturn();
 
-        return new CreatedNote(
-                responseJson(result).path("data").path("id").asLong(),
-                title
-        );
+        long noteId = responseJson(result).path("data").path("id").asLong();
+        Note note = noteMapper.selectById(noteId);
+        note.setAuditStatus(1);
+        noteMapper.updateById(note);
+        return new CreatedNote(noteId, title);
     }
 
     private JsonNode findRecord(JsonNode response, long noteId) {

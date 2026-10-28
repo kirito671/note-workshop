@@ -272,7 +272,13 @@ class NotePaginationIntegrationTest {
                 .andExpect(jsonPath("$.code").value(0))
                 .andReturn();
 
-        return responseJson(result).path("data").path("id").asLong();
+        long noteId = responseJson(result).path("data").path("id").asLong();
+        if (visibility == 1) {
+            Note note = noteMapper.selectById(noteId);
+            note.setAuditStatus(1);
+            noteMapper.updateById(note);
+        }
+        return noteId;
     }
 
     private LoginSession registerAndLogin(String scenario) throws Exception {

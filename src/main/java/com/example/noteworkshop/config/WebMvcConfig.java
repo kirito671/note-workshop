@@ -1,5 +1,6 @@
 package com.example.noteworkshop.config;
 
+import com.example.noteworkshop.security.AdminInterceptor;
 import com.example.noteworkshop.security.JwtInterceptor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
@@ -12,13 +13,16 @@ import java.nio.file.Path;
 @Configuration
 public class WebMvcConfig implements WebMvcConfigurer {
     private final JwtInterceptor jwtInterceptor;
+    private final AdminInterceptor adminInterceptor;
     private final Path uploadRoot;
 
     public WebMvcConfig(
             JwtInterceptor jwtInterceptor,
+            AdminInterceptor adminInterceptor,
             @Value("${app.upload.dir}") String uploadDir
     ) {
         this.jwtInterceptor = jwtInterceptor;
+        this.adminInterceptor = adminInterceptor;
         this.uploadRoot = Path.of(uploadDir).toAbsolutePath().normalize();
     }
 
@@ -30,6 +34,9 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         "/api/auth/register",
                         "/api/auth/login"
                 );
+
+        registry.addInterceptor(adminInterceptor)
+                .addPathPatterns("/api/admin/**");
     }
 
     @Override

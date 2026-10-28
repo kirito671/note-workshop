@@ -1,44 +1,84 @@
 # Note-Workshop
 
-面向在校学生的读书笔记社区。用户可以注册登录、维护个人资料、创建私有或公开读书笔记、上传多张配图、浏览公开书架、点赞笔记、查看自己点赞过的笔记，并按点赞数查看笔记排行。
+Note-Workshop 是一个面向在校学生的读书笔记社区。用户可以注册登录、维护个人资料、创建私有或公开笔记、上传多张配图、点赞和评论、关注作者；管理员可以审核公开笔记、管理用户和内容、查看 AI 调用统计。
 
-项目当前已完成 **P0 基础要求**，并提供可直接运行的完整前端页面。
+项目已经完成 P0 基础功能、P1 进阶功能和 P2 AI 加分功能，并提供可直接运行的原生 HTML/CSS/JavaScript 前端。
 
 ## 当前状态
 
 ```text
 P0 基础功能：已完成
-全量自动化测试：90 个通过
+P1 进阶功能：已完成
+P2 AI 功能：已完成
+自动化测试：97 个通过
 前端页面：已完成
 API 文档：已完成
 Postman Collection：已完成
-答辩截图与演示指南：已完成
 ```
 
-已实现：
+## 功能清单
+
+### 用户与鉴权
 
 - 用户注册、登录、JWT 鉴权；
-- BCrypt 密码哈希；
-- 用户资料查询和昵称修改；
-- 头像上传与静态访问；
-- 读书笔记新增、修改、删除；
-- 图书名称字符串字段；
-- 私有/公开笔记权限；
-- 作者与管理员操作权限；
-- 我的笔记分页；
-- 公开笔记分页与关键词搜索；
-- 笔记详情和全部配图；
-- 多图上传、删除和排序；
-- 图片格式、大小和真实内容校验；
-- 点赞、取消点赞；
-- 我点赞的笔记分页；
-- 点赞数与点赞排行；
-- 删除笔记时清理图片、点赞和物理文件；
-- 统一响应、参数校验和全局异常处理；
-- 完整 HTML/CSS/JavaScript 前端；
-- Markdown API 文档和 Postman Collection。
+- BCrypt 密码哈希，数据库不保存明文密码；
+- 修改昵称、上传头像；
+- JWT 拦截器每次请求校验数据库中的账号状态；
+- 账号被禁用后，已有 token 立即失效；
+- 管理员接口使用独立拦截器校验角色。
 
-当前版本未实现管理员审核、关注、评论、Spring AI 阅读辅助和 AI 客服。这些属于后续 P1/P2 扩展范围。
+### 读书笔记
+
+- 新建、编辑、删除笔记；
+- 图书名称使用字符串保存；
+- 私有 / 公开两种可见性；
+- 公开笔记提交后进入待审核状态；
+- 作者可查看审核意见、修改并重新提交；
+- 管理员通过、驳回或下架公开笔记；
+- 我的笔记、公开书架、关键词搜索均支持分页；
+- 笔记详情返回正文、全部配图、点赞状态、审核状态和已保存的 AI 结果；
+- 多图上传、单图删除、图片排序；
+- 删除笔记时清理图片、点赞、评论和 AI 结果，并在事务提交后删除物理文件。
+
+### 点赞与作者社区
+
+- 公开且审核通过的笔记支持点赞和取消点赞；
+- 查看自己点赞过的笔记，支持分页；
+- 笔记按点赞数排行；
+- 点赞使用唯一索引避免重复数据；
+- 关注 / 取消关注作者；
+- 作者粉丝数、关注数、公开笔记数统计；
+- 热门作者排行；
+- 查看作者全部公开笔记。
+
+### 评论
+
+- 公开且审核通过的笔记支持评论；
+- 支持多级回复；
+- 只能删除自己的评论，管理员可以删除违规评论；
+- 删除父评论时，所有子评论级联逻辑删除；
+- 评论删除与级联处理在事务中完成。
+
+### AI 阅读辅助
+
+- 为笔记生成摘要、适宜人群、完整性、相关性和深度评分；
+- AI 结果不会自动写入笔记主表；
+- 用户明确选择保存或丢弃；
+- 一篇笔记只保留一份 AI 结果，再次保存会更新原结果；
+- 笔记详情只读取 `note_ai_result`，不污染笔记正文；
+- 每次分析都写入 `ai_audit_log`；
+- 管理员可查看 AI 调用总数、成功数和失败数。
+
+### AI 智能客服
+
+- 新建、查看、切换和删除会话；
+- 用户消息与 AI 回复全部持久化；
+- 每个会话归属唯一用户，后端逐次校验越权；
+- 不同会话上下文互相隔离；
+- 使用最近 10 轮消息作为滑动窗口；
+- system prompt 限制为平台客服范围；
+- 删除会话时同时清理消息；
+- 每次客服调用写入 AI 审计日志。
 
 ## 技术栈
 
@@ -61,9 +101,9 @@ Postman Collection：已完成
 ```text
 浏览器 / HTML / JavaScript
         ↓ HTTP
-Controller：接收请求、参数校验、调用 Service、返回统一结果
+Controller：接收请求、参数校验、调用 Service、返回统一响应
         ↓
-Service：业务逻辑、权限判断、事务、业务组装
+Service：业务逻辑、权限判断、事务、业务对象组装
         ↓
 Mapper：数据库 CRUD
         ↓
@@ -78,33 +118,49 @@ MySQL
 docs/sql/schema.sql
 ```
 
-当前表：
+增量脚本：
+
+```text
+docs/sql/migration_v2_features.sql
+```
+
+主要表：
 
 - `user`：用户、BCrypt 密码、角色、状态；
-- `note`：笔记、可见性、状态；
-- `note_image`：笔记图片、访问 URL、排序；
-- `note_like`：点赞关系，唯一索引防止重复点赞。
+- `note`：笔记、可见性、审核状态、隐藏状态；
+- `note_image`：笔记图片和排序；
+- `note_like`：点赞关系；
+- `user_follow`：关注关系；
+- `note_comment`：评论、父评论和逻辑删除状态；
+- `note_ai_result`：一篇笔记最多一份已保存的 AI 结果；
+- `ai_audit_log`：AI 调用审计日志；
+- `ai_conversation`：AI 客服会话；
+- `ai_message`：AI 客服消息。
 
-SQL 中包含 `DROP TABLE`，只适合本地初始化和开发环境重置，不要直接在有数据的生产库执行。
+`docs/sql/schema.sql` 会重建演示数据库，只适合本地开发和答辩环境，不要直接对生产库执行。
 
 ## 主要接口
 
-### 认证
+### 认证与用户
 
 ```text
-POST /api/auth/register
-POST /api/auth/login
+POST   /api/auth/register
+POST   /api/auth/login
+
+GET    /api/users/me
+PUT    /api/users/me
+POST   /api/users/me/avatar
+
+POST   /api/users/{id}/follow
+DELETE /api/users/{id}/follow
+GET    /api/users/{id}/follow-status
+GET    /api/users/{id}/profile
+GET    /api/users/{id}/stats
+GET    /api/users/{id}/notes
+GET    /api/users/hot-authors
 ```
 
-### 用户
-
-```text
-GET  /api/users/me
-PUT  /api/users/me
-POST /api/users/me/avatar
-```
-
-### 笔记
+### 笔记、图片与点赞
 
 ```text
 POST   /api/notes
@@ -115,44 +171,84 @@ GET    /api/notes/ranking
 GET    /api/notes/{id}
 PUT    /api/notes/{id}
 DELETE /api/notes/{id}
-```
+POST   /api/notes/{id}/submit
 
-### 图片
-
-```text
+GET    /api/notes/{id}/images
 POST   /api/notes/{id}/images
 DELETE /api/notes/{id}/images/{imageId}
 PUT    /api/notes/{id}/images/order
-```
 
-### 点赞
-
-```text
 POST   /api/notes/{id}/like
 DELETE /api/notes/{id}/like
 ```
 
-### 静态文件
+### 评论
 
 ```text
-GET /uploads/**
+GET    /api/notes/{noteId}/comments
+POST   /api/notes/{noteId}/comments
+DELETE /api/notes/{noteId}/comments/{commentId}
 ```
 
-除注册、登录和静态文件访问外，其余 `/api/**` 接口需要：
+### AI
+
+```text
+POST   /api/notes/{id}/ai-analysis
+POST   /api/notes/{id}/ai-result
+DELETE /api/notes/{id}/ai-result
+
+POST   /api/ai/conversations
+GET    /api/ai/conversations
+GET    /api/ai/conversations/{id}
+POST   /api/ai/conversations/{id}/messages
+DELETE /api/ai/conversations/{id}
+```
+
+### 管理员
+
+```text
+GET    /api/admin/users
+PUT    /api/admin/users/{id}/status
+
+GET    /api/admin/notes
+GET    /api/admin/notes/pending
+PUT    /api/admin/notes/{id}/approve
+PUT    /api/admin/notes/{id}/reject
+PUT    /api/admin/notes/{id}/hide
+DELETE /api/admin/comments/{id}
+
+GET    /api/admin/ai/stats
+```
+
+除注册、登录和静态资源外，其余 `/api/**` 接口都需要：
 
 ```http
 Authorization: Bearer <token>
 ```
 
-完整接口说明见：
+完整接口说明：
 
 - [API 文档](docs/api.md)
 - [Postman Collection](docs/postman/note-workshop.postman_collection.json)
+- [演示与答辩指南](docs/demo-guide.md)
+
+## AI 运行模式
+
+默认没有配置 `AI_API_KEY` 时，项目使用本地可演示分析器与规则客服，保证答辩环境不依赖外网。
+
+配置 OpenAI 兼容接口后，会自动切换到真实大模型：
+
+```text
+AI_API_KEY
+AI_BASE_URL=https://api.openai.com/v1
+AI_MODEL=gpt-4o-mini
+AI_CONNECT_TIMEOUT_SECONDS=10
+AI_READ_TIMEOUT_SECONDS=45
+```
+
+API key 只能通过环境变量注入，禁止写入仓库。
+
 ## 环境变量
-
-数据库密码、JWT secret 和未来可能出现的 OSS/AI 密钥都不应写入仓库。
-
-当前支持的环境变量：
 
 ```text
 DB_URL
@@ -167,36 +263,44 @@ UPLOAD_DIR
 MAX_AVATAR_SIZE_BYTES
 MAX_NOTE_IMAGE_SIZE_BYTES
 MAX_NOTE_IMAGE_COUNT
+
+AI_API_KEY
+AI_BASE_URL
+AI_MODEL
+AI_CONNECT_TIMEOUT_SECONDS
+AI_READ_TIMEOUT_SECONDS
 ```
 
 说明：
 
-- `DB_PASSWORD`：本地数据库密码，已配置为用户级环境变量；
+- `DB_PASSWORD`：数据库密码；
 - `JWT_SECRET`：至少 32 字节的随机字符串；
 - `JWT_EXPIRATION_MINUTES`：默认 120 分钟；
-- `UPLOAD_DIR`：默认 `uploads`；
+- `UPLOAD_DIR`：上传根目录，默认 `uploads`；
 - 头像单文件最大 5MB；
 - 笔记单图最大 5MB；
 - 一条笔记最多 6 张图片；
 - multipart 请求最大 32MB。
 
-`src/main/resources/application-local.yml` 已经被 `.gitignore` 排除，并且只保留环境变量引用，不保存明文密码。
-
-如果修改了用户级环境变量，需要重新启动 IDEA 或终端后才会生效。
+`src/main/resources/application-local.yml` 已被 `.gitignore` 排除，并且只引用环境变量。
 
 ## 启动方式
 
-### IDEA
+### 1. 初始化数据库
 
-1. 导入项目根目录的 `pom.xml`；
-2. 刷新 Maven 依赖；
-3. 启动本地 MySQL；
-4. 使用 `docs/sql/schema.sql` 初始化数据库；
-5. 确认 IDEA Run Configuration 能读取 `DB_PASSWORD` 和 `JWT_SECRET`；
-6. 运行 `NoteworkshopApplication`；
-7. 浏览器访问 `http://localhost:8080/`。
+在 MySQL 8 中执行：
 
-### PowerShell
+```text
+docs/sql/schema.sql
+```
+
+已有 P0 数据库时执行：
+
+```text
+docs/sql/migration_v2_features.sql
+```
+
+### 2. PowerShell 启动
 
 ```powershell
 $env:DB_URL="jdbc:mysql://localhost:3306/note_workshop?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false"
@@ -209,7 +313,13 @@ $env:UPLOAD_DIR="uploads"
 mvn spring-boot:run
 ```
 
-也可以使用打包后的 JAR：
+访问：
+
+```text
+http://localhost:8080/
+```
+
+### 3. JAR 启动
 
 ```powershell
 mvn -DskipTests package
@@ -218,7 +328,7 @@ java -jar target/note-workshop-0.0.1-SNAPSHOT.jar
 
 ## 演示账号
 
-初始化 SQL 中提供两个演示账号，密码均为：
+初始 SQL 提供两个账号，密码均为：
 
 ```text
 123456
@@ -229,13 +339,10 @@ student / 123456
 admin   / 123456
 ```
 
-前端演示主要使用 `student` 账号。
-
 ## 测试
 
-运行全量测试：
-
 ```powershell
+$env:DB_PASSWORD=[Environment]::GetEnvironmentVariable('DB_PASSWORD','User')
 $env:JWT_SECRET="test-only-jwt-secret-please-change-1234567890"
 $env:JWT_EXPIRATION_MINUTES="120"
 mvn test
@@ -244,138 +351,16 @@ mvn test
 当前结果：
 
 ```text
-Tests run: 90, Failures: 0, Errors: 0, Skipped: 0
+Tests run: 97, Failures: 0, Errors: 0, Skipped: 0
 BUILD SUCCESS
 ```
 
-测试覆盖：
+测试覆盖注册登录、JWT、账号禁用、笔记 CRUD、审核状态、图片处理、点赞、排行、关注、评论级联、AI 结果保存、AI 会话隔离、AI 审计统计等核心链路。
 
-- 注册、重复用户名、参数校验；
-- BCrypt 密码存储；
-- 登录、禁用用户、错误密码；
-- JWT 拦截器；
-- 当前用户资料；
-- 头像上传与静态访问；
-- 笔记 CRUD；
-- 私有笔记和用户隔离；
-- 作者与管理员权限；
-- 笔记分页与搜索；
-- 多图上传、边界校验和文件补偿删除；
-- 图片删除和排序；
-- 点赞幂等、取消点赞；
-- 点赞数字段；
-- 我点赞的笔记分页；
-- 点赞排行；
-- 删除笔记数据库级联和物理文件清理。
+## 安全注意事项
 
-## 前端页面
-
-前端文件位于：
-
-```text
-src/main/resources/static
-```
-
-页面无需单独启动 Node 服务，Spring Boot 会直接提供静态资源。
-
-功能包括：
-
-- 登录、注册、退出；
-- 登录状态恢复；
-- 用户资料与头像；
-- 公开书架；
-- 我的书架；
-- 创建、编辑、删除笔记；
-- 搜索；
-- 多图上传、删除和排序；
-- 点赞；
-- 我点赞的笔记；
-- 点赞排行；
-- 响应式移动端布局。
-
-## 答辩演示
-
-演示步骤、讲解重点、常见问答和备用方案：
-
-```text
-docs/demo-guide.md
-```
-
-截图目录：
-
-```text
-docs/screenshots
-```
-
-当前包含：
-
-- 登录页；
-- 公开书架；
-- 笔记详情；
-- 创建笔记；
-- 点赞排行；
-- 个人资料；
-- 移动端页面。
-
-## 文件上传限制
-
-- 头像：`jpg`、`jpeg`、`png`，最大 5MB；
-- 笔记图片：`jpg`、`jpeg`、`png`，最大 5MB；
-- 每条笔记最多 6 张图片；
-- 使用 UUID 文件名，避免重名和路径穿越；
-- 数据库只保存访问 URL；
-- 删除笔记时数据库事务提交后清理物理图片；
-- `uploads/` 不提交 Git。
-
-## 安全说明
-
-- 密码只保存 BCrypt 哈希；
-- JWT secret 通过环境变量注入；
-- 数据库密码通过环境变量注入；
-- `.gitignore` 排除本地配置、日志和上传文件；
-- 前端使用 `textContent` 渲染用户内容，避免直接拼接 HTML；
-- 受保护接口统一经过 JWT Interceptor；
-- 私有笔记仅作者或管理员可见；
-- 点赞关系使用数据库唯一索引防止并发重复。
-
-## 项目结构
-
-```text
-.
-├── docs/
-│   ├── api.md
-│   ├── demo-guide.md
-│   ├── postman/
-│   ├── screenshots/
-│   └── sql/schema.sql
-├── src/main/java/com/example/noteworkshop/
-│   ├── common/
-│   ├── config/
-│   ├── controller/
-│   ├── dto/
-│   ├── entity/
-│   ├── exception/
-│   ├── mapper/
-│   ├── security/
-│   ├── service/
-│   └── vo/
-├── src/main/resources/
-│   ├── application.yml
-│   └── static/
-├── src/test/java/
-├── .gitignore
-├── pom.xml
-└── README.md
-```
-
-## 后续计划
-
-当前已按要求停止继续扩展 P1/P2 功能，优先准备最终演示和答辩。
-
-后续可选方向：
-
-- 管理员用户管理和笔记审核；
-- 关注作者、粉丝统计；
-- 评论与多级回复；
-- Spring AI 阅读辅助；
-- AI 智能客服与调用审计。
+- 不要提交 `application-local.yml`、数据库密码、JWT secret、OSS key 或 AI API key；
+- `uploads/`、`logs/`、`target/` 已由 `.gitignore` 排除；
+- 图片上传同时校验扩展名、MIME 类型和真实图片内容；
+- 删除笔记时先提交数据库事务，再清理物理文件；
+- 会话接口每次校验当前登录用户与会话归属用户一致。

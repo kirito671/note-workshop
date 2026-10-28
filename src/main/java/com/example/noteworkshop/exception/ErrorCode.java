@@ -5,6 +5,7 @@ public enum ErrorCode {
     UNAUTHORIZED(401, "未登录或 token 无效"),
     FORBIDDEN(403, "无权限"),
     NOT_FOUND(404, "资源不存在"),
+    CONFLICT(409, "资源状态冲突"),
     USERNAME_EXISTS(409, "用户名已存在"),
     INTERNAL_ERROR(500, "服务器内部错误");
 
@@ -16,11 +17,6 @@ public enum ErrorCode {
         this.message = message;
     }
 
-    public int getCode() {
-        return code;
-    }
-
-    public String getMessage() {
-        return message;
-    }
+    public int getCode() { return code; }
+    public String getMessage() { return message; }
 }

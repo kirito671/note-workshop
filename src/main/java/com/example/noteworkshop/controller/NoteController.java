@@ -68,6 +68,12 @@ public class NoteController {
         return ApiResponse.success(noteService.pageRanking(page, size));
     }
 
+    @PostMapping("/{id}/submit")
+    public ApiResponse<Void> submitForReview(@PathVariable Long id) {
+        noteService.submitForReview(id);
+        return ApiResponse.success(null);
+    }
+
     @GetMapping("/{id}")
     public ApiResponse<NoteDetailVO> detail(@PathVariable Long id) {
         return ApiResponse.success(noteService.getDetail(id));
@@ -86,6 +92,11 @@ public class NoteController {
         noteService.delete(id);
         return ApiResponse.success(null);
     }
+    @GetMapping("/{id}/images")
+    public ApiResponse<List<NoteImageVO>> listImages(@PathVariable Long id) {
+        return ApiResponse.success(noteService.listImages(id));
+    }
+
     @PostMapping("/{id}/images")
     public ApiResponse<List<NoteImageVO>> uploadImages(
             @PathVariable Long id,

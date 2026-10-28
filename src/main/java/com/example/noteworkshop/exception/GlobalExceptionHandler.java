@@ -3,11 +3,15 @@ package com.example.noteworkshop.exception;
 import com.example.noteworkshop.common.ApiResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 @RestControllerAdvice
@@ -17,8 +21,14 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ApiResponse<Void>> handleBusinessException(BusinessException exception) {
         HttpStatus status = resolveStatus(exception.getCode());
-        return ResponseEntity.status(status)
-                .body(ApiResponse.failure(exception.getCode(), exception.getMessage()));
+        if (status.is5xxServerError()) {
+            log.error("Business exception: {}", exception.getMessage(), exception);
+        } else if (status == HttpStatus.FORBIDDEN || status == HttpStatus.CONFLICT) {
+            log.warn("Business request rejected: code={}, message={}", exception.getCode(), exception.getMessage());
+        } else {
+            log.info("Business request failed: code={}, message={}", exception.getCode(), exception.getMessage());
+        }
+        return ResponseEntity.status(status).body(ApiResponse.failure(exception.getCode(), exception.getMessage()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -27,27 +37,38 @@ public class GlobalExceptionHandler {
                 .findFirst()
                 .map(error -> error.getField() + ": " + error.getDefaultMessage())
                 .orElse(ErrorCode.VALIDATION_ERROR.getMessage());
+        return badRequest(message);
+    }
 
-        return ResponseEntity.badRequest()
-                .body(ApiResponse.failure(ErrorCode.VALIDATION_ERROR.getCode(), message));
+    @ExceptionHandler({HttpMessageNotReadableException.class, MissingServletRequestParameterException.class,
+            MethodArgumentTypeMismatchException.class})
+    public ResponseEntity<ApiResponse<Void>> handleMalformedRequest(Exception exception) {
+        log.info("Malformed request rejected: {}", exception.getMessage());
+        return badRequest("请求参数或请求体格式错误");
     }
 
     @ExceptionHandler(MaxUploadSizeExceededException.class)
-    public ResponseEntity<ApiResponse<Void>> handleMaxUploadSizeExceededException(
-            MaxUploadSizeExceededException exception
-    ) {
+    public ResponseEntity<ApiResponse<Void>> handleMaxUploadSizeExceededException(MaxUploadSizeExceededException exception) {
         log.warn("Upload rejected because file exceeds multipart limit");
-        return ResponseEntity.badRequest()
-                .body(ApiResponse.failure(ErrorCode.VALIDATION_ERROR.getCode(), "上传文件过大"));
+        return badRequest("上传文件过大");
     }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleDataIntegrityViolation(DataIntegrityViolationException exception) {
+        log.warn("Database constraint rejected request", exception);
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiResponse.failure(ErrorCode.CONFLICT.getCode(), "数据状态冲突，请刷新后重试"));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleUnexpectedException(Exception exception) {
         log.error("Unhandled server exception", exception);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.failure(
-                        ErrorCode.INTERNAL_ERROR.getCode(),
-                        ErrorCode.INTERNAL_ERROR.getMessage()
-                ));
+                .body(ApiResponse.failure(ErrorCode.INTERNAL_ERROR.getCode(), ErrorCode.INTERNAL_ERROR.getMessage()));
+    }
+
+    private ResponseEntity<ApiResponse<Void>> badRequest(String message) {
+        return ResponseEntity.badRequest().body(ApiResponse.failure(ErrorCode.VALIDATION_ERROR.getCode(), message));
     }
 
     private HttpStatus resolveStatus(int code) {

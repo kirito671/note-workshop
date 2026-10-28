@@ -5,17 +5,24 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.noteworkshop.common.PageResponse;
 import com.example.noteworkshop.dto.NoteCreateRequest;
 import com.example.noteworkshop.dto.NoteImageOrderRequest;
+import com.example.noteworkshop.dto.NoteReviewRequest;
 import com.example.noteworkshop.dto.NoteUpdateRequest;
 import com.example.noteworkshop.entity.Note;
 import com.example.noteworkshop.entity.NoteImage;
+import com.example.noteworkshop.entity.NoteAiResult;
 import com.example.noteworkshop.entity.NoteLike;
+import com.example.noteworkshop.entity.User;
 import com.example.noteworkshop.exception.BusinessException;
 import com.example.noteworkshop.exception.ErrorCode;
+import com.example.noteworkshop.mapper.NoteCommentMapper;
 import com.example.noteworkshop.mapper.NoteImageMapper;
+import com.example.noteworkshop.mapper.NoteAiResultMapper;
 import com.example.noteworkshop.mapper.NoteLikeMapper;
 import com.example.noteworkshop.mapper.NoteMapper;
+import com.example.noteworkshop.mapper.UserMapper;
 import com.example.noteworkshop.security.CurrentUser;
 import com.example.noteworkshop.security.UserContext;
+import com.example.noteworkshop.vo.NoteAiResultVO;
 import com.example.noteworkshop.vo.NoteDetailVO;
 import com.example.noteworkshop.vo.NoteImageVO;
 import com.example.noteworkshop.vo.NoteSummaryVO;
@@ -36,9 +43,15 @@ import java.util.Set;
 
 @Service
 public class NoteService {
+    private static final int AUDIT_PENDING = 0;
+    private static final int AUDIT_APPROVED = 1;
+    private static final int AUDIT_REJECTED = 2;
     private final NoteMapper noteMapper;
     private final NoteImageMapper noteImageMapper;
     private final NoteLikeMapper noteLikeMapper;
+    private final NoteCommentMapper noteCommentMapper;
+    private final NoteAiResultMapper noteAiResultMapper;
+    private final UserMapper userMapper;
     private final FileStorageService fileStorageService;
     private final int maxNoteImageCount;
 
@@ -46,6 +59,9 @@ public class NoteService {
             NoteMapper noteMapper,
             NoteImageMapper noteImageMapper,
             NoteLikeMapper noteLikeMapper,
+            NoteCommentMapper noteCommentMapper,
+            NoteAiResultMapper noteAiResultMapper,
+            UserMapper userMapper,
             FileStorageService fileStorageService,
             @Value("${app.upload.max-note-image-count}") int maxNoteImageCount
     ) {
@@ -55,6 +71,9 @@ public class NoteService {
         this.noteMapper = noteMapper;
         this.noteImageMapper = noteImageMapper;
         this.noteLikeMapper = noteLikeMapper;
+        this.noteCommentMapper = noteCommentMapper;
+        this.noteAiResultMapper = noteAiResultMapper;
+        this.userMapper = userMapper;
         this.fileStorageService = fileStorageService;
         this.maxNoteImageCount = maxNoteImageCount;
     }
@@ -70,6 +89,8 @@ public class NoteService {
         note.setContent(request.content().trim());
         note.setVisibility(request.visibility());
         note.setStatus(1);
+        note.setAuditStatus(Integer.valueOf(1).equals(request.visibility()) ? AUDIT_PENDING : AUDIT_APPROVED);
+        note.setAuditRemark(null);
 
         noteMapper.insert(note);
         Note savedNote = requireNote(note.getId());
@@ -81,7 +102,8 @@ public class NoteService {
         CurrentUser currentUser = UserContext.get();
 
         // 隐藏笔记：只有作者或管理员可查看
-        if (!Integer.valueOf(1).equals(note.getStatus())
+        if ((!Integer.valueOf(1).equals(note.getStatus())
+                || !Integer.valueOf(AUDIT_APPROVED).equals(note.getAuditStatus()))
                 && !canManageNote(note, currentUser)) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "笔记不存在");
         }
@@ -108,6 +130,9 @@ public class NoteService {
                         .set(Note::getBookName, request.bookName().trim())
                         .set(Note::getContent, request.content().trim())
                         .set(Note::getVisibility, request.visibility())
+                        .set(Note::getStatus, 1)
+                        .set(Note::getAuditStatus, Integer.valueOf(1).equals(request.visibility()) ? AUDIT_PENDING : AUDIT_APPROVED)
+                        .set(Note::getAuditRemark, null)
         );
 
         return toDetailVO(requireNote(id));
@@ -138,6 +163,13 @@ public class NoteService {
         noteLikeMapper.delete(
                 Wrappers.<NoteLike>lambdaQuery()
                         .eq(NoteLike::getNoteId, id)
+        );
+        noteCommentMapper.delete(
+                Wrappers.<com.example.noteworkshop.entity.NoteComment>lambdaQuery()
+                        .eq(com.example.noteworkshop.entity.NoteComment::getNoteId, id)
+        );
+        noteAiResultMapper.delete(
+                Wrappers.<NoteAiResult>lambdaQuery().eq(NoteAiResult::getNoteId, id)
         );
         noteMapper.deleteById(id);
     }
@@ -288,6 +320,95 @@ public class NoteService {
         return toPageResponse(result);
     }
 
+    @Transactional
+    public void submitForReview(Long id) {
+        Note note = requireNote(id);
+        requireManagePermission(note, UserContext.get());
+        if (!Integer.valueOf(1).equals(note.getVisibility())) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "只有公开笔记需要审核");
+        }
+        noteMapper.update(null, Wrappers.<Note>lambdaUpdate()
+                .eq(Note::getId, id)
+                .set(Note::getAuditStatus, AUDIT_PENDING)
+                .set(Note::getAuditRemark, null));
+    }
+
+    public PageResponse<NoteSummaryVO> pageAuthorPublicNotes(Long authorId, long page, long size) {
+        validatePage(page, size);
+        Page<Note> result = noteMapper.selectPage(
+                Page.of(page, size),
+                Wrappers.<Note>lambdaQuery()
+                        .eq(Note::getUserId, authorId)
+                        .eq(Note::getVisibility, 1)
+                        .eq(Note::getStatus, 1)
+                        .eq(Note::getAuditStatus, AUDIT_APPROVED)
+                        .orderByDesc(Note::getCreatedAt)
+                        .orderByDesc(Note::getId)
+        );
+        return toPageResponse(result);
+    }
+
+    public PageResponse<NoteSummaryVO> pageAdminNotes(Integer auditStatus, long page, long size) {
+        validatePage(page, size);
+        var wrapper = Wrappers.<Note>lambdaQuery()
+                .eq(Note::getVisibility, 1);
+        if (auditStatus != null) {
+            wrapper.eq(Note::getAuditStatus, auditStatus);
+        }
+        wrapper.orderByDesc(Note::getCreatedAt).orderByDesc(Note::getId);
+        return toPageResponse(noteMapper.selectPage(Page.of(page, size), wrapper));
+    }
+
+    @Transactional
+    public void approveNote(Long id) {
+        Note note = requireNote(id);
+        if (!Integer.valueOf(1).equals(note.getVisibility())) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "私有笔记不需要审核");
+        }
+        noteMapper.update(null, Wrappers.<Note>lambdaUpdate()
+                .eq(Note::getId, id)
+                .set(Note::getAuditStatus, AUDIT_APPROVED)
+                .set(Note::getAuditRemark, null));
+    }
+
+    @Transactional
+    public void rejectNote(Long id, NoteReviewRequest request) {
+        Note note = requireNote(id);
+        if (!Integer.valueOf(1).equals(note.getVisibility())) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "私有笔记不需要审核");
+        }
+        String remark = request == null || request.remark() == null ? "内容未通过审核" : request.remark().trim();
+        noteMapper.update(null, Wrappers.<Note>lambdaUpdate()
+                .eq(Note::getId, id)
+                .set(Note::getAuditStatus, AUDIT_REJECTED)
+                .set(Note::getAuditRemark, remark));
+    }
+
+    @Transactional
+    public void hideNote(Long id) {
+        requireNote(id);
+        noteMapper.update(null, Wrappers.<Note>lambdaUpdate()
+                .eq(Note::getId, id)
+                .set(Note::getStatus, 0));
+    }
+    public List<NoteImageVO> listImages(Long noteId) {
+        Note note = requireNote(noteId);
+        CurrentUser currentUser = UserContext.get();
+        if ((!Integer.valueOf(1).equals(note.getVisibility())
+                || !Integer.valueOf(1).equals(note.getStatus())
+                || !Integer.valueOf(1).equals(note.getAuditStatus()))
+                && !canManageNote(note, currentUser)) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "笔记不存在");
+        }
+        return noteImageMapper.selectList(Wrappers.<NoteImage>lambdaQuery()
+                        .eq(NoteImage::getNoteId, noteId)
+                        .orderByAsc(NoteImage::getSortOrder)
+                        .orderByAsc(NoteImage::getId))
+                .stream()
+                .map(image -> new NoteImageVO(image.getId(), image.getImageUrl(), image.getSortOrder()))
+                .toList();
+    }
+
     public PageResponse<NoteSummaryVO> pageMyNotes(long page, long size) {
         validatePage(page, size);
         CurrentUser currentUser = UserContext.get();
@@ -308,7 +429,8 @@ public class NoteService {
 
         var wrapper = Wrappers.<Note>lambdaQuery()
                 .eq(Note::getVisibility, 1)
-                .eq(Note::getStatus, 1);
+                .eq(Note::getStatus, 1)
+                .eq(Note::getAuditStatus, AUDIT_APPROVED);
 
         if (StringUtils.hasText(keyword)) {
             String trimmedKeyword = keyword.trim();
@@ -350,6 +472,9 @@ public class NoteService {
                 Wrappers.<NoteLike>lambdaQuery()
                         .in(NoteLike::getNoteId, noteIds)
         );
+        Set<Long> authorIds = notes.stream().map(Note::getUserId).collect(java.util.stream.Collectors.toSet());
+        Map<Long, User> authors = new HashMap<>();
+        for (User user : userMapper.selectBatchIds(authorIds)) authors.put(user.getId(), user);
         CurrentUser currentUser = UserContext.get();
         Map<Long, Long> likeCounts = new HashMap<>();
         Set<Long> likedNoteIds = new HashSet<>();
@@ -363,6 +488,7 @@ public class NoteService {
         List<NoteSummaryVO> records = notes.stream()
                 .map(note -> toSummaryVO(
                         note,
+                        authors.get(note.getUserId()),
                         likeCounts.getOrDefault(note.getId(), 0L),
                         likedNoteIds.contains(note.getId())
                 ))
@@ -377,14 +503,18 @@ public class NoteService {
         );
     }
 
-    private NoteSummaryVO toSummaryVO(Note note, long likeCount, boolean likedByMe) {
+    private NoteSummaryVO toSummaryVO(Note note, User author, long likeCount, boolean likedByMe) {
         return new NoteSummaryVO(
                 note.getId(),
                 note.getUserId(),
+                author == null ? "未知作者" : author.getNickname(),
+                author == null ? null : author.getAvatarUrl(),
                 note.getTitle(),
                 note.getBookName(),
                 note.getVisibility(),
                 note.getStatus(),
+                note.getAuditStatus(),
+                note.getAuditRemark(),
                 likeCount,
                 likedByMe,
                 note.getCreatedAt()
@@ -409,6 +539,7 @@ public class NoteService {
     }
 
     private NoteDetailVO toDetailVO(Note note) {
+        User author = userMapper.selectById(note.getUserId());
         List<String> images = loadImageUrls(note.getId());
         List<NoteLike> noteLikes = noteLikeMapper.selectList(
                 Wrappers.<NoteLike>lambdaQuery()
@@ -418,21 +549,32 @@ public class NoteService {
         long likeCount = noteLikes.size();
         boolean likedByMe = noteLikes.stream()
                 .anyMatch(noteLike -> currentUser.id().equals(noteLike.getUserId()));
+        NoteAiResult savedAiResult = noteAiResultMapper.selectOne(
+                Wrappers.<NoteAiResult>lambdaQuery().eq(NoteAiResult::getNoteId, note.getId())
+        );
+        NoteAiResultVO aiResult = savedAiResult == null ? null : new NoteAiResultVO(
+                savedAiResult.getId(), savedAiResult.getSummary(), savedAiResult.getAudience(),
+                savedAiResult.getCompletenessScore(), savedAiResult.getRelevanceScore(), savedAiResult.getDepthScore()
+        );
 
         return new NoteDetailVO(
                 note.getId(),
                 note.getUserId(),
+                author == null ? "未知作者" : author.getNickname(),
+                author == null ? null : author.getAvatarUrl(),
                 note.getTitle(),
                 note.getBookName(),
                 note.getContent(),
                 note.getVisibility(),
                 note.getStatus(),
+                note.getAuditStatus(),
+                note.getAuditRemark(),
                 likeCount,
                 likedByMe,
                 note.getCreatedAt(),
                 note.getUpdatedAt(),
                 images,
-                null
+                aiResult
         );
     }
 

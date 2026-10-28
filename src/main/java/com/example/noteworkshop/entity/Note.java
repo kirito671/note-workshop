@@ -18,6 +18,8 @@ public class Note {
     private String content;
     private Integer visibility;
     private Integer status;
+    private Integer auditStatus;
+    private String auditRemark;
 
     @TableField(insertStrategy = FieldStrategy.NEVER, updateStrategy = FieldStrategy.NEVER)
     private LocalDateTime createdAt;
@@ -79,6 +81,22 @@ public class Note {
 
     public void setStatus(Integer status) {
         this.status = status;
+    }
+
+    public Integer getAuditStatus() {
+        return auditStatus;
+    }
+
+    public void setAuditStatus(Integer auditStatus) {
+        this.auditStatus = auditStatus;
+    }
+
+    public String getAuditRemark() {
+        return auditRemark;
+    }
+
+    public void setAuditRemark(String auditRemark) {
+        this.auditRemark = auditRemark;
     }
 
     public LocalDateTime getCreatedAt() {

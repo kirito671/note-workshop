@@ -266,7 +266,13 @@ class NoteLikedPageIntegrationTest {
                 .andExpect(jsonPath("$.code").value(0))
                 .andReturn();
 
-        return new CreatedNote(responseJson(result).path("data").path("id").asLong());
+        long noteId = responseJson(result).path("data").path("id").asLong();
+        if (visibility == 1) {
+            Note note = noteMapper.selectById(noteId);
+            note.setAuditStatus(1);
+            noteMapper.updateById(note);
+        }
+        return new CreatedNote(noteId);
     }
 
     private JsonNode findRecord(JsonNode page, long noteId) {

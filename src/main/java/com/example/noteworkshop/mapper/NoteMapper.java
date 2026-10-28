@@ -16,6 +16,7 @@ public interface NoteMapper extends BaseMapper<Note> {
             WHERE nl.user_id = #{userId}
               AND n.visibility = 1
               AND n.status = 1
+              AND n.audit_status = 1
             ORDER BY nl.created_at DESC, nl.id DESC
             """)
     Page<Note> selectLikedNotes(
@@ -33,6 +34,7 @@ public interface NoteMapper extends BaseMapper<Note> {
             ) stats ON stats.note_id = n.id
             WHERE n.visibility = 1
               AND n.status = 1
+              AND n.audit_status = 1
             ORDER BY COALESCE(stats.like_count, 0) DESC,
                      n.created_at DESC,
                      n.id DESC

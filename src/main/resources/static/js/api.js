@@ -11,21 +11,12 @@
     }
   }
 
-  function getToken() {
-    return localStorage.getItem(TOKEN_KEY) || "";
-  }
-
-  function setToken(token) {
-    localStorage.setItem(TOKEN_KEY, token);
-  }
-
-  function clearToken() {
-    localStorage.removeItem(TOKEN_KEY);
-  }
+  const getToken = () => localStorage.getItem(TOKEN_KEY) || "";
+  const setToken = (token) => localStorage.setItem(TOKEN_KEY, token);
+  const clearToken = () => localStorage.removeItem(TOKEN_KEY);
 
   async function request(path, options = {}) {
     const method = options.method || "GET";
-    const auth = options.auth !== false;
     const headers = { Accept: "application/json", ...(options.headers || {}) };
     let body = options.body;
 
@@ -33,7 +24,7 @@
       headers["Content-Type"] = headers["Content-Type"] || "application/json";
       body = JSON.stringify(body);
     }
-    if (auth && getToken()) {
+    if (options.auth !== false && getToken()) {
       headers.Authorization = `Bearer ${getToken()}`;
     }
 
@@ -54,7 +45,7 @@
 
     const success = response.ok && (!payload || payload.code === 0);
     if (!success) {
-      const message = payload && payload.message ? payload.message : `请求失败（${response.status}）`;
+      const message = payload && payload.message ? payload.message : `请求失败（HTTP ${response.status}）`;
       throw new ApiError(message, response.status, payload && payload.code, payload);
     }
     return payload && Object.prototype.hasOwnProperty.call(payload, "data") ? payload.data : payload;

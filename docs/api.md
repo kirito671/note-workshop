@@ -273,7 +273,7 @@ Content-Type: multipart/form-data
 表单字段：
 
 ```text
-file: 单个 jpg/jpeg/png 图片
+file: 单个 jpg/jpeg/png 文件
 ```
 
 PowerShell 示例：
@@ -770,3 +770,379 @@ curl.exe "http://localhost:8080/api/notes/ranking?page=1&size=10" `
 - `GET /api/notes/public`、`/liked` 和 `/ranking` 返回摘要数据，不返回笔记正文。
 - 笔记删除后物理图片文件在数据库事务提交后清理。
 - 本文件随接口变化持续更新。
+---
+
+## 12. P1 社区功能接口
+
+以下接口均需要 JWT。管理员接口还会经过 `AdminInterceptor` 角色校验。
+
+### 12.1 关注与作者主页
+
+```http
+POST   /api/users/{id}/follow
+DELETE /api/users/{id}/follow
+GET    /api/users/{id}/follow-status
+GET    /api/users/{id}/profile
+GET    /api/users/{id}/stats
+GET    /api/users/{id}/notes?page=1&size=10
+GET    /api/users/hot-authors?page=1&size=10
+```
+
+`FollowStatusVO`：
+
+```json
+{
+  "following": true,
+  "followerCount": 8,
+  "followingCount": 3
+}
+```
+
+`AuthorStatsVO`：
+
+```json
+{
+  "followerCount": 8,
+  "followingCount": 3,
+  "publicNoteCount": 12
+}
+```
+
+规则：
+
+- 不能关注自己；
+- 重复关注幂等；
+- 热门作者只统计正常普通用户，按粉丝数降序；
+- 作者笔记只返回审核通过的公开笔记。
+
+### 12.2 审核状态
+
+公开笔记创建或编辑后进入 `auditStatus = 0` 待审核状态。私有笔记不需要审核。
+
+```text
+0 = 待审核
+1 = 审核通过
+2 = 审核驳回
+```
+
+只有审核通过的公开笔记会进入公开书架、点赞排行、作者公开笔记列表和评论接口。
+
+作者重新提交：
+
+```http
+POST /api/notes/{id}/submit
+Authorization: Bearer <token>
+```
+
+返回的 `NoteSummaryVO` 和 `NoteDetailVO` 包含：
+
+```json
+{
+  "auditStatus": 0,
+  "auditRemark": null
+}
+```
+
+### 12.3 评论与多级回复
+
+```http
+GET    /api/notes/{noteId}/comments
+POST   /api/notes/{noteId}/comments
+DELETE /api/notes/{noteId}/comments/{commentId}
+```
+
+创建一级评论：
+
+```json
+{
+  "content": "这个对比很清楚。"
+}
+```
+
+创建回复：
+
+```json
+{
+  "content": "我补充一个实际使用场景。",
+  "parentId": 101
+}
+```
+
+`CommentVO`：
+
+```json
+{
+  "id": 102,
+  "noteId": 15,
+  "userId": 3,
+  "nickname": "阅读者",
+  "avatarUrl": null,
+  "parentId": 101,
+  "content": "我补充一个实际使用场景。",
+  "createdAt": "2026-10-28T20:00:00",
+  "replies": []
+}
+```
+
+规则：
+
+- 只有审核通过的公开笔记可以评论；
+- 支持任意层级回复；
+- 只能删除自己的评论，管理员可以删除任意违规评论；
+- 删除父评论时，全部子孙评论级联逻辑删除；
+- 已删除评论不会出现在列表中。
+
+### 12.4 管理员用户与内容管理
+
+用户列表：
+
+```http
+GET /api/admin/users?page=1&size=10
+```
+
+禁用或启用账号：
+
+```http
+PUT /api/admin/users/{id}/status
+Content-Type: application/json
+
+{
+  "status": 0
+}
+```
+
+公开笔记列表：
+
+```http
+GET /api/admin/notes?auditStatus=0&page=1&size=10
+GET /api/admin/notes/pending?page=1&size=10
+```
+
+审核操作：
+
+```http
+PUT /api/admin/notes/{id}/approve
+
+PUT /api/admin/notes/{id}/reject
+Content-Type: application/json
+{
+  "remark": "请补充书籍版本和阅读说明。"
+}
+
+PUT /api/admin/notes/{id}/hide
+```
+
+删除违规评论：
+
+```http
+DELETE /api/admin/comments/{id}
+```
+
+JWT 拦截器每次请求都会读取数据库账号状态。账号禁用后，旧 token 再访问受保护接口会返回 403。
+
+## 13. P2 AI 功能接口
+
+### 13.1 AI 笔记分析
+
+```http
+POST /api/notes/{id}/ai-analysis
+Authorization: Bearer <token>
+```
+
+只有笔记作者或管理员可以调用。分析结果不会自动写入笔记主表。
+
+`AiAnalysisVO`：
+
+```json
+{
+  "noteId": 15,
+  "summary": "笔记比较了数组和链表在查询、插入与删除上的差异。",
+  "audience": "具备一定基础、希望深入理解集合原理的读者",
+  "completenessScore": 82,
+  "relevanceScore": 91,
+  "depthScore": 78
+}
+```
+
+用户确认保存：
+
+```http
+POST /api/notes/{id}/ai-result
+Content-Type: application/json
+
+{
+  "summary": "笔记比较了数组和链表在查询、插入与删除上的差异。",
+  "audience": "具备一定基础、希望深入理解集合原理的读者",
+  "completenessScore": 82,
+  "relevanceScore": 91,
+  "depthScore": 78
+}
+```
+
+删除已保存结果：
+
+```http
+DELETE /api/notes/{id}/ai-result
+```
+
+规则：
+
+- AI 输出先返回给用户，不会自动保存；
+- 一篇笔记通过唯一索引最多保存一份 AI 结果；
+- 再次保存会更新原结果；
+- 笔记详情通过 `aiResult` 返回已保存结果；
+- 每次分析调用成功或失败都会写入 `ai_audit_log`。
+
+### 13.2 AI 智能客服
+
+新建会话：
+
+```http
+POST /api/ai/conversations
+Content-Type: application/json
+
+{
+  "title": "公开笔记审核咨询"
+}
+```
+
+`title` 可省略，默认标题为“新的阅读咨询”。
+
+会话列表：
+
+```http
+GET /api/ai/conversations?page=1&size=20
+```
+
+会话详情与历史消息：
+
+```http
+GET /api/ai/conversations/{id}
+```
+
+发送消息：
+
+```http
+POST /api/ai/conversations/{id}/messages
+Content-Type: application/json
+
+{
+  "content": "公开笔记提交后多久能出现在书架？"
+}
+```
+
+响应：
+
+```json
+{
+  "conversationId": 7,
+  "userMessage": {
+    "id": 21,
+    "role": "USER",
+    "content": "公开笔记提交后多久能出现在书架？",
+    "createdAt": "2026-10-28T20:10:00"
+  },
+  "assistantMessage": {
+    "id": 22,
+    "role": "ASSISTANT",
+    "content": "公开笔记需要管理员审核通过后才会出现在公开书架。",
+    "createdAt": "2026-10-28T20:10:01"
+  }
+}
+```
+
+删除会话：
+
+```http
+DELETE /api/ai/conversations/{id}
+```
+
+规则：
+
+- 会话归属唯一用户；
+- 每次访问详情、发送消息、删除会话都会校验当前用户是否为会话所有者；
+- 越权返回自定义 403 业务异常；
+- 历史消息持久化；
+- 上下文只携带最近 10 轮；
+- 不同会话上下文隔离；
+- system prompt 限定平台客服范围；
+- 删除会话时同时删除其全部消息；
+- 每次客服调用写入 AI 审计日志。
+
+### 13.3 管理员 AI 统计
+
+```http
+GET /api/admin/ai/stats
+Authorization: Bearer <admin-token>
+```
+
+响应：
+
+```json
+{
+  "total": 20,
+  "success": 18,
+  "failure": 2
+}
+```
+
+统计来自 `ai_audit_log`，覆盖 AI 笔记分析和 AI 客服两个场景。
+
+## 14. AI 配置
+
+默认没有 API key 时，使用本地可演示分析器和规则客服。配置 OpenAI 兼容接口后会切换到真实大模型。
+
+```text
+AI_API_KEY
+AI_BASE_URL=https://api.openai.com/v1
+AI_MODEL=gpt-4o-mini
+AI_CONNECT_TIMEOUT_SECONDS=10
+AI_READ_TIMEOUT_SECONDS=45
+```
+
+密钥必须通过环境变量注入，禁止写死在代码或配置文件中。
+
+## 15. 扩展后的核心响应字段
+
+`NoteSummaryVO` 新增：
+
+```text
+authorNickname
+authorAvatarUrl
+auditStatus
+auditRemark
+```
+
+`NoteDetailVO` 在此基础上新增：
+
+```text
+content
+images
+aiResult
+```
+
+`NoteAiResultVO`：
+
+```json
+{
+  "id": 5,
+  "summary": "AI 摘要",
+  "audience": "适合的读者",
+  "completenessScore": 80,
+  "relevanceScore": 90,
+  "depthScore": 75
+}
+```
+
+## 16. 推荐完整测试顺序
+
+1. 登录普通用户；
+2. 创建公开笔记；
+3. 登录管理员并通过审核；
+4. 普通用户点赞、评论和回复；
+5. 关注作者并查看作者统计；
+6. 作者生成 AI 分析并手动保存；
+7. 新建 AI 客服会话并发送两轮问题；
+8. 使用另一个账号访问会话，确认返回 403；
+9. 管理员查看用户、待审核笔记和 AI 统计；
+10. 管理员禁用测试账号，确认旧 token 立即失效。

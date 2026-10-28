@@ -68,7 +68,8 @@ public class NoteLikeService {
         Note note = noteMapper.selectById(noteId);
         if (note == null
                 || !Integer.valueOf(1).equals(note.getVisibility())
-                || !Integer.valueOf(1).equals(note.getStatus())) {
+                || !Integer.valueOf(1).equals(note.getStatus())
+                || !Integer.valueOf(1).equals(note.getAuditStatus())) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "笔记不存在");
         }
         return note;
