@@ -214,7 +214,14 @@ public class NoteService {
             throw new BusinessException(ErrorCode.NOT_FOUND, "图片不存在");
         }
 
-        fileStorageService.deleteNoteImageByUrl(noteImage.getImageUrl());
+        TransactionSynchronizationManager.registerSynchronization(
+                new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        fileStorageService.deleteNoteImageByUrl(noteImage.getImageUrl());
+                    }
+                }
+        );
     }
 
     @Transactional

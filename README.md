@@ -1,100 +1,46 @@
 # Note-Workshop
 
-面向在校学生的读书笔记社区项目。用户可以创建和管理读书笔记、上传多张笔记图片、控制私有/公开可见性，并参与后续的点赞、评论、关注和 AI 阅读辅助功能。
+面向在校学生的读书笔记社区。用户可以注册登录、维护个人资料、创建私有或公开读书笔记、上传多张配图、浏览公开书架、点赞笔记、查看自己点赞过的笔记，并按点赞数查看笔记排行。
 
-## 项目概况
+项目当前已完成 **P0 基础要求**，并提供可直接运行的完整前端页面。
 
-项目采用 Java 后端分层架构：
-
-```text
-Controller -> Service -> Mapper -> MySQL
-```
-
-当前按照以下优先级迭代：
+## 当前状态
 
 ```text
-P0 基础要求 -> P1 进阶功能 -> P2 AI 加分功能 -> P3 提交与答辩
+P0 基础功能：已完成
+全量自动化测试：90 个通过
+前端页面：已完成
+API 文档：已完成
+Postman Collection：已完成
+答辩截图与演示指南：已完成
 ```
 
-最终展示和验收以答辩时提交的仓库版本为准。
+已实现：
 
-## 当前进度
+- 用户注册、登录、JWT 鉴权；
+- BCrypt 密码哈希；
+- 用户资料查询和昵称修改；
+- 头像上传与静态访问；
+- 读书笔记新增、修改、删除；
+- 图书名称字符串字段；
+- 私有/公开笔记权限；
+- 作者与管理员操作权限；
+- 我的笔记分页；
+- 公开笔记分页与关键词搜索；
+- 笔记详情和全部配图；
+- 多图上传、删除和排序；
+- 图片格式、大小和真实内容校验；
+- 点赞、取消点赞；
+- 我点赞的笔记分页；
+- 点赞数与点赞排行；
+- 删除笔记时清理图片、点赞和物理文件；
+- 统一响应、参数校验和全局异常处理；
+- 完整 HTML/CSS/JavaScript 前端；
+- Markdown API 文档和 Postman Collection。
 
-当前已完成 P0-5 读书笔记与图片模块。
-
-已完成功能：
-
-### 基础框架与规范
-
-- Spring Boot 项目骨架
-- Maven 构建配置
-- MyBatis-Plus 与 MySQL 配置
-- HikariCP 数据库连接池
-- 统一响应结构 `ApiResponse<T>`
-- 分页响应结构 `PageResponse<T>`
-- 错误码枚举 `ErrorCode`
-- 自定义业务异常 `BusinessException`
-- 全局异常处理
-- 参数校验异常处理
-- 文件上传超限异常处理
-- SLF4J + Logback 日志
-
-### 用户与鉴权
-
-- 用户注册
-- BCrypt 密码哈希
-- 用户登录与 JWT 生成
-- JWT Interceptor 鉴权
-- `UserContext` 保存当前登录用户
-- 当前用户资料查询
-- 昵称修改
-- 头像上传
-- 本地头像存储与 `/uploads/**` 静态访问
-- 作者与管理员权限判断
-- 禁用账号拒绝登录
-
-### 读书笔记与图片
-
-- 创建读书笔记
-- 编辑和删除读书笔记
-- 私有/公开可见性
-- 作者本人或管理员操作权限
-- 我的笔记分页查询
-- 公开笔记分页查询
-- 标题或图书名称关键词搜索
-- 笔记详情查询
-- 多图上传
-- 图片格式、大小和真实内容校验
-- 图片排序
-- 单图删除
-- 数据库记录与磁盘文件补偿清理
-- 图片保存路径为 `uploads/notes/{noteId}/{UUID}.{ext}`
-
-### 自动化测试
-
-当前测试结果：
-
-```text
-Tests run: 55, Failures: 0, Errors: 0, Skipped: 0
-BUILD SUCCESS
-```
-
-覆盖注册、登录、JWT、拦截器、用户资料、头像上传、笔记 CRUD、分页、私有笔记隔离、多图上传、图片删除、图片排序和文件补偿删除。
-
-### 尚未实现
-
-- 公开笔记点赞、取消点赞、我点赞的笔记和点赞排行
-- 管理员后台与公开笔记审核
-- 关注作者、粉丝统计和热门作者
-- 公开笔记评论与多级回复
-- AI 阅读辅助
-- AI 智能客服
-- 正式前端页面
-- 正式接口文档
+当前版本未实现管理员审核、关注、评论、Spring AI 阅读辅助和 AI 客服。这些属于后续 P1/P2 扩展范围。
 
 ## 技术栈
-
-当前已使用：
 
 - Java 25
 - Spring Boot 3.5.6
@@ -105,26 +51,52 @@ BUILD SUCCESS
 - Spring Security Crypto（BCrypt）
 - Jakarta Validation
 - SLF4J + Logback
-- 本地文件存储
+- HikariCP
+- HTML / CSS / 原生 JavaScript
 
-后续计划：
+项目未引入 Redis、消息队列、微服务或其他未要求的中间件。
 
-- Spring AI（P2，可选加分项）
-- HTML / CSS / JavaScript 前端
+## 分层架构
 
-本项目不引入 Redis、消息队列、微服务或其他未要求中间件。
+```text
+浏览器 / HTML / JavaScript
+        ↓ HTTP
+Controller：接收请求、参数校验、调用 Service、返回统一结果
+        ↓
+Service：业务逻辑、权限判断、事务、业务组装
+        ↓
+Mapper：数据库 CRUD
+        ↓
+MySQL
+```
 
-## 当前接口
+## 数据库
 
-### 公开接口
+初始脚本：
+
+```text
+docs/sql/schema.sql
+```
+
+当前表：
+
+- `user`：用户、BCrypt 密码、角色、状态；
+- `note`：笔记、可见性、状态；
+- `note_image`：笔记图片、访问 URL、排序；
+- `note_like`：点赞关系，唯一索引防止重复点赞。
+
+SQL 中包含 `DROP TABLE`，只适合本地初始化和开发环境重置，不要直接在有数据的生产库执行。
+
+## 主要接口
+
+### 认证
 
 ```text
 POST /api/auth/register
 POST /api/auth/login
-GET  /uploads/**
 ```
 
-### 用户资料接口
+### 用户
 
 ```text
 GET  /api/users/me
@@ -132,18 +104,20 @@ PUT  /api/users/me
 POST /api/users/me/avatar
 ```
 
-### 读书笔记接口
+### 笔记
 
 ```text
 POST   /api/notes
 GET    /api/notes/my
 GET    /api/notes/public
+GET    /api/notes/liked
+GET    /api/notes/ranking
 GET    /api/notes/{id}
 PUT    /api/notes/{id}
 DELETE /api/notes/{id}
 ```
 
-### 笔记图片接口
+### 图片
 
 ```text
 POST   /api/notes/{id}/images
@@ -151,39 +125,32 @@ DELETE /api/notes/{id}/images/{imageId}
 PUT    /api/notes/{id}/images/order
 ```
 
-除注册、登录和静态文件访问外，其余接口需要携带：
+### 点赞
+
+```text
+POST   /api/notes/{id}/like
+DELETE /api/notes/{id}/like
+```
+
+### 静态文件
+
+```text
+GET /uploads/**
+```
+
+除注册、登录和静态文件访问外，其余 `/api/**` 接口需要：
 
 ```http
 Authorization: Bearer <token>
 ```
 
-## 数据库
+完整接口说明见：
 
-初始建表脚本：
-
-- [docs/sql/schema.sql](docs/sql/schema.sql)
-
-当前表：
-
-- `user`
-- `note`
-- `note_image`
-- `note_like`
-
-说明：脚本包含 `DROP TABLE`，只适合本地初始化或开发阶段重置数据库，不要直接用于已有数据的环境。
-
-## 上传限制
-
-- 头像单文件最大 5MB。
-- 单张笔记图片最大 5MB。
-- 一条笔记最多保存 6 张图片。
-- 仅支持 `jpg`、`jpeg`、`png`。
-- multipart 请求最大 32MB。
-- 上传文件不会提交到 Git。
-
+- [API 文档](docs/api.md)
+- [Postman Collection](docs/postman/note-workshop.postman_collection.json)
 ## 环境变量
 
-禁止将数据库密码、JWT secret、OSS accessKey 或 AI API key 写入并提交到仓库。
+数据库密码、JWT secret 和未来可能出现的 OSS/AI 密钥都不应写入仓库。
 
 当前支持的环境变量：
 
@@ -204,21 +171,183 @@ MAX_NOTE_IMAGE_COUNT
 
 说明：
 
-- `JWT_SECRET` 至少需要 32 字节，不得提交到 Git。
-- `JWT_EXPIRATION_MINUTES` 默认 120 分钟。
-- `UPLOAD_DIR` 默认 `uploads`。
-- `MAX_AVATAR_SIZE_BYTES` 默认 5242880。
-- `MAX_NOTE_IMAGE_SIZE_BYTES` 默认 5242880。
-- `MAX_NOTE_IMAGE_COUNT` 默认 6。
-- 本地数据库密码可以放在 `src/main/resources/application-local.yml`，该文件已被 `.gitignore` 排除。
+- `DB_PASSWORD`：本地数据库密码，已配置为用户级环境变量；
+- `JWT_SECRET`：至少 32 字节的随机字符串；
+- `JWT_EXPIRATION_MINUTES`：默认 120 分钟；
+- `UPLOAD_DIR`：默认 `uploads`；
+- 头像单文件最大 5MB；
+- 笔记单图最大 5MB；
+- 一条笔记最多 6 张图片；
+- multipart 请求最大 32MB。
+
+`src/main/resources/application-local.yml` 已经被 `.gitignore` 排除，并且只保留环境变量引用，不保存明文密码。
+
+如果修改了用户级环境变量，需要重新启动 IDEA 或终端后才会生效。
+
+## 启动方式
+
+### IDEA
+
+1. 导入项目根目录的 `pom.xml`；
+2. 刷新 Maven 依赖；
+3. 启动本地 MySQL；
+4. 使用 `docs/sql/schema.sql` 初始化数据库；
+5. 确认 IDEA Run Configuration 能读取 `DB_PASSWORD` 和 `JWT_SECRET`；
+6. 运行 `NoteworkshopApplication`；
+7. 浏览器访问 `http://localhost:8080/`。
+
+### PowerShell
+
+```powershell
+$env:DB_URL="jdbc:mysql://localhost:3306/note_workshop?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false"
+$env:DB_USERNAME="note_app"
+$env:DB_PASSWORD="<数据库密码>"
+$env:JWT_SECRET="<至少 32 字节的随机字符串>"
+$env:JWT_EXPIRATION_MINUTES="120"
+$env:UPLOAD_DIR="uploads"
+
+mvn spring-boot:run
+```
+
+也可以使用打包后的 JAR：
+
+```powershell
+mvn -DskipTests package
+java -jar target/note-workshop-0.0.1-SNAPSHOT.jar
+```
+
+## 演示账号
+
+初始化 SQL 中提供两个演示账号，密码均为：
+
+```text
+123456
+```
+
+```text
+student / 123456
+admin   / 123456
+```
+
+前端演示主要使用 `student` 账号。
+
+## 测试
+
+运行全量测试：
+
+```powershell
+$env:JWT_SECRET="test-only-jwt-secret-please-change-1234567890"
+$env:JWT_EXPIRATION_MINUTES="120"
+mvn test
+```
+
+当前结果：
+
+```text
+Tests run: 90, Failures: 0, Errors: 0, Skipped: 0
+BUILD SUCCESS
+```
+
+测试覆盖：
+
+- 注册、重复用户名、参数校验；
+- BCrypt 密码存储；
+- 登录、禁用用户、错误密码；
+- JWT 拦截器；
+- 当前用户资料；
+- 头像上传与静态访问；
+- 笔记 CRUD；
+- 私有笔记和用户隔离；
+- 作者与管理员权限；
+- 笔记分页与搜索；
+- 多图上传、边界校验和文件补偿删除；
+- 图片删除和排序；
+- 点赞幂等、取消点赞；
+- 点赞数字段；
+- 我点赞的笔记分页；
+- 点赞排行；
+- 删除笔记数据库级联和物理文件清理。
+
+## 前端页面
+
+前端文件位于：
+
+```text
+src/main/resources/static
+```
+
+页面无需单独启动 Node 服务，Spring Boot 会直接提供静态资源。
+
+功能包括：
+
+- 登录、注册、退出；
+- 登录状态恢复；
+- 用户资料与头像；
+- 公开书架；
+- 我的书架；
+- 创建、编辑、删除笔记；
+- 搜索；
+- 多图上传、删除和排序；
+- 点赞；
+- 我点赞的笔记；
+- 点赞排行；
+- 响应式移动端布局。
+
+## 答辩演示
+
+演示步骤、讲解重点、常见问答和备用方案：
+
+```text
+docs/demo-guide.md
+```
+
+截图目录：
+
+```text
+docs/screenshots
+```
+
+当前包含：
+
+- 登录页；
+- 公开书架；
+- 笔记详情；
+- 创建笔记；
+- 点赞排行；
+- 个人资料；
+- 移动端页面。
+
+## 文件上传限制
+
+- 头像：`jpg`、`jpeg`、`png`，最大 5MB；
+- 笔记图片：`jpg`、`jpeg`、`png`，最大 5MB；
+- 每条笔记最多 6 张图片；
+- 使用 UUID 文件名，避免重名和路径穿越；
+- 数据库只保存访问 URL；
+- 删除笔记时数据库事务提交后清理物理图片；
+- `uploads/` 不提交 Git。
+
+## 安全说明
+
+- 密码只保存 BCrypt 哈希；
+- JWT secret 通过环境变量注入；
+- 数据库密码通过环境变量注入；
+- `.gitignore` 排除本地配置、日志和上传文件；
+- 前端使用 `textContent` 渲染用户内容，避免直接拼接 HTML；
+- 受保护接口统一经过 JWT Interceptor；
+- 私有笔记仅作者或管理员可见；
+- 点赞关系使用数据库唯一索引防止并发重复。
 
 ## 项目结构
 
 ```text
 .
 ├── docs/
-│   └── sql/
-│       └── schema.sql
+│   ├── api.md
+│   ├── demo-guide.md
+│   ├── postman/
+│   ├── screenshots/
+│   └── sql/schema.sql
 ├── src/main/java/com/example/noteworkshop/
 │   ├── common/
 │   ├── config/
@@ -231,56 +360,22 @@ MAX_NOTE_IMAGE_COUNT
 │   ├── service/
 │   └── vo/
 ├── src/main/resources/
-│   └── application.yml
+│   ├── application.yml
+│   └── static/
 ├── src/test/java/
 ├── .gitignore
 ├── pom.xml
 └── README.md
 ```
 
-## 运行方式
+## 后续计划
 
-### IDEA
+当前已按要求停止继续扩展 P1/P2 功能，优先准备最终演示和答辩。
 
-1. 导入项目 `pom.xml`。
-2. 刷新 Maven 依赖。
-3. 启动本地 MySQL。
-4. 使用 `docs/sql/schema.sql` 初始化数据库。
-5. 配置数据库密码和 JWT 环境变量。
-6. 运行 `NoteworkshopApplication`。
+后续可选方向：
 
-### Maven
-
-```powershell
-mvn spring-boot:run
-```
-
-## 测试
-
-运行全部测试：
-
-```powershell
-mvn test
-```
-
-PowerShell 示例：
-
-```powershell
-$env:JWT_SECRET="test-only-jwt-secret-please-change-1234567890"
-$env:JWT_EXPIRATION_MINUTES="120"
-
-mvn test
-```
-
-当前结果：
-
-```text
-Tests run: 55, Failures: 0, Errors: 0, Skipped: 0
-BUILD SUCCESS
-```
-
-## 说明
-
-当前版本已完成用户注册登录、JWT 鉴权、个人资料、头像上传、读书笔记 CRUD、分页、公开/私有控制、多图上传、图片删除和图片排序。
-
-点赞、管理员后台、审核、社区互动、AI 和正式前端尚未完成。仓库会继续更新，最终以答辩时提交的版本为准。
+- 管理员用户管理和笔记审核；
+- 关注作者、粉丝统计；
+- 评论与多级回复；
+- Spring AI 阅读辅助；
+- AI 智能客服与调用审计。

@@ -1,6 +1,11 @@
 package com.example.noteworkshop.verification;
 
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.example.noteworkshop.dto.RegisterRequest;
+import com.example.noteworkshop.entity.NoteLike;
+import com.example.noteworkshop.mapper.NoteLikeMapper;
+import com.example.noteworkshop.mapper.NoteMapper;
+import com.example.noteworkshop.mapper.UserMapper;
 import com.example.noteworkshop.entity.NoteImage;
 import com.example.noteworkshop.mapper.NoteImageMapper;
 import com.example.noteworkshop.service.UserService;
@@ -18,7 +23,6 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.FileSystemUtils;
 
 import javax.imageio.ImageIO;
@@ -26,6 +30,8 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -40,7 +46,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @AutoConfigureMockMvc
-@Transactional
 @TestPropertySource(properties = "app.upload.dir=target/test-uploads")
 class NoteImageDeleteIntegrationTest {
     private static final Path UPLOAD_ROOT = Path.of("target/test-uploads").toAbsolutePath().normalize();
@@ -57,8 +62,28 @@ class NoteImageDeleteIntegrationTest {
     @Autowired
     private NoteImageMapper noteImageMapper;
 
+    @Autowired
+    private NoteMapper noteMapper;
+
+    @Autowired
+    private NoteLikeMapper noteLikeMapper;
+
+    @Autowired
+    private UserMapper userMapper;
+
+    private final List<Long> noteIds = new ArrayList<>();
+    private final List<Long> userIds = new ArrayList<>();
+
     @AfterEach
     void cleanUpUploadedNoteFiles() throws Exception {
+        for (Long noteId : noteIds) {
+            noteImageMapper.delete(Wrappers.<NoteImage>lambdaQuery().eq(NoteImage::getNoteId, noteId));
+            noteLikeMapper.delete(Wrappers.<NoteLike>lambdaQuery().eq(NoteLike::getNoteId, noteId));
+            noteMapper.deleteById(noteId);
+        }
+        for (Long userId : userIds) {
+            userMapper.deleteById(userId);
+        }
         FileSystemUtils.deleteRecursively(UPLOAD_ROOT.resolve("notes"));
         Files.createDirectories(UPLOAD_ROOT.resolve("notes"));
     }
@@ -157,6 +182,7 @@ class NoteImageDeleteIntegrationTest {
         UserProfileVO profile = userService.register(
                 new RegisterRequest(username, "123456", "image delete test user")
         );
+        userIds.add(profile.id());
 
         String body = objectMapper.writeValueAsString(Map.of(
                 "username", username,
@@ -191,7 +217,9 @@ class NoteImageDeleteIntegrationTest {
                 .andExpect(jsonPath("$.code").value(0))
                 .andReturn();
 
-        return responseJson(result).path("data").path("id").asLong();
+        long noteId = responseJson(result).path("data").path("id").asLong();
+        noteIds.add(noteId);
+        return noteId;
     }
 
     private UploadedImage uploadImage(String token, long noteId, String filename) throws Exception {
