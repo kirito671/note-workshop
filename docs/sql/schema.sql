@@ -1,8 +1,7 @@
--- noinspection SqlResolve
--- Note-Workshop Day 3 schema
+-- Note-Workshop initial schema
 -- Database: MySQL 8.x
 -- Scope: user / note / note_image / note_like
--- Advanced tables (comment, ai_log, follow) are intentionally deferred.
+-- Advanced tables such as comment, ai_log and follow are intentionally deferred.
 
 CREATE DATABASE IF NOT EXISTS `note_workshop`
     DEFAULT CHARACTER SET utf8mb4
