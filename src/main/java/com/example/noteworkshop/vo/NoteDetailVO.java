@@ -11,6 +11,8 @@ public record NoteDetailVO(
         String content,
         Integer visibility,
         Integer status,
+        long likeCount,
+        boolean likedByMe,
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
         List<String> images,

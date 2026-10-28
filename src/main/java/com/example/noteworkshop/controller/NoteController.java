@@ -53,6 +53,21 @@ public class NoteController {
     ) {
         return ApiResponse.success(noteService.pagePublicNotes(page, size, keyword));
     }
+    @GetMapping("/liked")
+    public ApiResponse<PageResponse<NoteSummaryVO>> pageLikedNotes(
+            @RequestParam(defaultValue = "1") long page,
+            @RequestParam(defaultValue = "10") long size
+    ) {
+        return ApiResponse.success(noteService.pageLikedNotes(page, size));
+    }
+    @GetMapping("/ranking")
+    public ApiResponse<PageResponse<NoteSummaryVO>> pageRanking(
+            @RequestParam(defaultValue = "1") long page,
+            @RequestParam(defaultValue = "10") long size
+    ) {
+        return ApiResponse.success(noteService.pageRanking(page, size));
+    }
+
     @GetMapping("/{id}")
     public ApiResponse<NoteDetailVO> detail(@PathVariable Long id) {
         return ApiResponse.success(noteService.getDetail(id));

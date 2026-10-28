@@ -9,6 +9,8 @@ public record NoteSummaryVO(
         String bookName,
         Integer visibility,
         Integer status,
+        long likeCount,
+        boolean likedByMe,
         LocalDateTime createdAt
 ) {
 }

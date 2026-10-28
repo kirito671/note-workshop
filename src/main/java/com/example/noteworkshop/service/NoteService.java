@@ -8,9 +8,11 @@ import com.example.noteworkshop.dto.NoteImageOrderRequest;
 import com.example.noteworkshop.dto.NoteUpdateRequest;
 import com.example.noteworkshop.entity.Note;
 import com.example.noteworkshop.entity.NoteImage;
+import com.example.noteworkshop.entity.NoteLike;
 import com.example.noteworkshop.exception.BusinessException;
 import com.example.noteworkshop.exception.ErrorCode;
 import com.example.noteworkshop.mapper.NoteImageMapper;
+import com.example.noteworkshop.mapper.NoteLikeMapper;
 import com.example.noteworkshop.mapper.NoteMapper;
 import com.example.noteworkshop.security.CurrentUser;
 import com.example.noteworkshop.security.UserContext;
@@ -20,6 +22,8 @@ import com.example.noteworkshop.vo.NoteSummaryVO;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -34,12 +38,14 @@ import java.util.Set;
 public class NoteService {
     private final NoteMapper noteMapper;
     private final NoteImageMapper noteImageMapper;
+    private final NoteLikeMapper noteLikeMapper;
     private final FileStorageService fileStorageService;
     private final int maxNoteImageCount;
 
     public NoteService(
             NoteMapper noteMapper,
             NoteImageMapper noteImageMapper,
+            NoteLikeMapper noteLikeMapper,
             FileStorageService fileStorageService,
             @Value("${app.upload.max-note-image-count}") int maxNoteImageCount
     ) {
@@ -48,6 +54,7 @@ public class NoteService {
         }
         this.noteMapper = noteMapper;
         this.noteImageMapper = noteImageMapper;
+        this.noteLikeMapper = noteLikeMapper;
         this.fileStorageService = fileStorageService;
         this.maxNoteImageCount = maxNoteImageCount;
     }
@@ -111,8 +118,26 @@ public class NoteService {
         Note note = requireNote(id);
         requireManagePermission(note, UserContext.get());
 
+        List<String> imageUrls = noteImageMapper.selectList(
+                Wrappers.<NoteImage>lambdaQuery()
+                        .eq(NoteImage::getNoteId, id)
+        ).stream().map(NoteImage::getImageUrl).toList();
+
+        TransactionSynchronizationManager.registerSynchronization(
+                new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        imageUrls.forEach(fileStorageService::deleteNoteImageByUrl);
+                    }
+                }
+        );
+
         noteImageMapper.delete(
                 Wrappers.<NoteImage>lambdaQuery().eq(NoteImage::getNoteId, id)
+        );
+        noteLikeMapper.delete(
+                Wrappers.<NoteLike>lambdaQuery()
+                        .eq(NoteLike::getNoteId, id)
         );
         noteMapper.deleteById(id);
     }
@@ -241,6 +266,21 @@ public class NoteService {
         return orderedImages;
     }
 
+    public PageResponse<NoteSummaryVO> pageLikedNotes(long page, long size) {
+        validatePage(page, size);
+        CurrentUser currentUser = UserContext.get();
+        Page<Note> result = noteMapper.selectLikedNotes(
+                Page.of(page, size),
+                currentUser.id()
+        );
+        return toPageResponse(result);
+    }
+    public PageResponse<NoteSummaryVO> pageRanking(long page, long size) {
+        validatePage(page, size);
+        Page<Note> result = noteMapper.selectRankingNotes(Page.of(page, size));
+        return toPageResponse(result);
+    }
+
     public PageResponse<NoteSummaryVO> pageMyNotes(long page, long size) {
         validatePage(page, size);
         CurrentUser currentUser = UserContext.get();
@@ -285,8 +325,40 @@ public class NoteService {
     }
 
     private PageResponse<NoteSummaryVO> toPageResponse(Page<Note> pageResult) {
-        List<NoteSummaryVO> records = pageResult.getRecords().stream()
-                .map(this::toSummaryVO)
+        List<Note> notes = pageResult.getRecords();
+        if (notes.isEmpty()) {
+            return new PageResponse<>(
+                    List.of(),
+                    pageResult.getTotal(),
+                    pageResult.getCurrent(),
+                    pageResult.getSize(),
+                    pageResult.getPages()
+            );
+        }
+
+        List<Long> noteIds = notes.stream()
+                .map(Note::getId)
+                .toList();
+        List<NoteLike> noteLikes = noteLikeMapper.selectList(
+                Wrappers.<NoteLike>lambdaQuery()
+                        .in(NoteLike::getNoteId, noteIds)
+        );
+        CurrentUser currentUser = UserContext.get();
+        Map<Long, Long> likeCounts = new HashMap<>();
+        Set<Long> likedNoteIds = new HashSet<>();
+        for (NoteLike noteLike : noteLikes) {
+            likeCounts.merge(noteLike.getNoteId(), 1L, Long::sum);
+            if (currentUser.id().equals(noteLike.getUserId())) {
+                likedNoteIds.add(noteLike.getNoteId());
+            }
+        }
+
+        List<NoteSummaryVO> records = notes.stream()
+                .map(note -> toSummaryVO(
+                        note,
+                        likeCounts.getOrDefault(note.getId(), 0L),
+                        likedNoteIds.contains(note.getId())
+                ))
                 .toList();
 
         return new PageResponse<>(
@@ -298,7 +370,7 @@ public class NoteService {
         );
     }
 
-    private NoteSummaryVO toSummaryVO(Note note) {
+    private NoteSummaryVO toSummaryVO(Note note, long likeCount, boolean likedByMe) {
         return new NoteSummaryVO(
                 note.getId(),
                 note.getUserId(),
@@ -306,6 +378,8 @@ public class NoteService {
                 note.getBookName(),
                 note.getVisibility(),
                 note.getStatus(),
+                likeCount,
+                likedByMe,
                 note.getCreatedAt()
         );
     }
@@ -329,6 +403,14 @@ public class NoteService {
 
     private NoteDetailVO toDetailVO(Note note) {
         List<String> images = loadImageUrls(note.getId());
+        List<NoteLike> noteLikes = noteLikeMapper.selectList(
+                Wrappers.<NoteLike>lambdaQuery()
+                        .eq(NoteLike::getNoteId, note.getId())
+        );
+        CurrentUser currentUser = UserContext.get();
+        long likeCount = noteLikes.size();
+        boolean likedByMe = noteLikes.stream()
+                .anyMatch(noteLike -> currentUser.id().equals(noteLike.getUserId()));
 
         return new NoteDetailVO(
                 note.getId(),
@@ -338,6 +420,8 @@ public class NoteService {
                 note.getContent(),
                 note.getVisibility(),
                 note.getStatus(),
+                likeCount,
+                likedByMe,
                 note.getCreatedAt(),
                 note.getUpdatedAt(),
                 images,
