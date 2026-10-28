@@ -78,8 +78,8 @@ INSERT INTO `note` (`user_id`, `title`, `book_name`, `content`, `visibility`, `s
 (2, 'MySQL 索引复习', '高性能 MySQL', '联合索引需要关注最左前缀原则。', 0, 1);
 
 INSERT INTO `note_image` (`note_id`, `image_url`, `sort_order`) VALUES
-(1, '/uploads/demo/java-collections.png', 0),
-(2, '/uploads/demo/mysql-index.png', 0);
+(1, '/images/demo-java-collections.svg', 0),
+(2, '/images/demo-mysql-index.svg', 0);
 
 INSERT INTO `note_like` (`user_id`, `note_id`) VALUES
 (1, 1);

@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#dcefe6"/>
+      <stop offset="1" stop-color="#f7fbf4"/>
+    </linearGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#183a31"/>
+      <stop offset="1" stop-color="#315f4a"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="800" fill="url(#bg)"/>
+  <circle cx="1010" cy="120" r="170" fill="#d8e96b" opacity=".55"/>
+  <g transform="translate(160 170)">
+    <rect x="0" y="200" width="340" height="260" rx="8" fill="#bfe0d6" transform="rotate(-8 170 330)"/>
+    <rect x="150" y="130" width="340" height="260" rx="8" fill="#9dc9bb" transform="rotate(5 320 260)"/>
+    <rect x="330" y="55" width="360" height="280" rx="8" fill="url(#card)"/>
+    <text x="382" y="150" fill="#d8e96b" font-family="Georgia, serif" font-size="32" letter-spacing="4">COLLECTIONS</text>
+    <text x="382" y="220" fill="#f7fbf8" font-family="Georgia, serif" font-size="76">ArrayList</text>
+    <text x="382" y="275" fill="#bfe0d6" font-family="Segoe UI, sans-serif" font-size="24">query / order / iterate</text>
+  </g>
+  <text x="90" y="690" fill="#183a31" font-family="Georgia, serif" font-size="54">Java 核心 · 集合学习</text>
+  <text x="94" y="738" fill="#637b72" font-family="Segoe UI, sans-serif" font-size="22">每一条数据，都有自己的位置。</text>
+</svg>

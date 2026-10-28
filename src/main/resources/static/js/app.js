@@ -88,6 +88,7 @@
     $("#railName").textContent = user ? (user.nickname || user.username) : "访客";
     $("#railUsername").textContent = user ? `@${user.username}` : "尚未登录";
     $("#sessionLabel").textContent = user ? `已登录 · ${user.nickname || user.username}` : "访客模式";
+    $("#railStatus").textContent = user ? "书架已点亮，写下一页吧。" : "先登录，再留下一行字。";
     setAvatar($("#railAvatar"), user);
     setAvatar($("#profileAvatar"), user);
     $("#profileName").textContent = user ? (user.nickname || user.username) : "访客";
