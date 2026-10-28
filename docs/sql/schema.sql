@@ -1,3 +1,4 @@
+-- noinspection SqlResolve
 -- Note-Workshop Day 3 schema
 -- Database: MySQL 8.x
 -- Scope: user / note / note_image / note_like

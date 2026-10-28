@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#eef7f1">
+  <title>Note-Workshop · 阅读工作台</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+  <div class="app-shell" id="appShell">
+    <aside class="sidebar" aria-label="主导航">
+      <div class="brand">
+        <span class="brand-mark">NW</span>
+        <span class="brand-copy"><strong>Note-Workshop</strong><small>reading desk</small></span>
+      </div>
+      <p class="rail-kicker">阅读工作台</p>
+      <nav class="nav-list">
+        <button class="nav-item is-active" data-view="explore" type="button"><span class="nav-index">01</span><span>发现</span></button>
+        <button class="nav-item" data-view="my" type="button"><span class="nav-index">02</span><span>我的书架</span></button>
+        <button class="nav-item" data-view="liked" type="button"><span class="nav-index">03</span><span>我点赞的</span></button>
+        <button class="nav-item" data-view="ranking" type="button"><span class="nav-index">04</span><span>热度排行</span></button>
+      </nav>
+      <div class="rail-note">
+        <span class="rail-note-label">今日的页边</span>
+        <strong id="railStatus">先登录，再留下一行字。</strong>
+        <p>把读书笔记当作路标，而不是作业。</p>
+      </div>
+      <div class="rail-profile">
+        <button class="profile-button" id="profileButton" type="button">
+          <span class="avatar" id="railAvatar">NW</span>
+          <span class="profile-button-copy"><strong id="railName">访客</strong><small id="railUsername">尚未登录</small></span>
+        </button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <p class="eyebrow" id="crumb">发现 / 公开书架</p>
+        <div class="top-actions"><span class="session-label" id="sessionLabel">访客模式</span><button class="quiet-button" id="logoutButton" type="button" hidden>退出</button></div>
+      </header>
+
+      <section class="auth-view" id="authView">
+        <div class="auth-intro">
+          <p class="eyebrow">a quiet place for loud ideas</p>
+          <h1>把一本书，<br><em>读成自己的路。</em></h1>
+          <p class="auth-lede">记录摘录、整理想法，也把那些尚未想明白的问题留在纸上。这里不催你读完，只帮你留下。</p>
+          <div class="auth-stats"><div><strong>04</strong><span>阅读入口</span></div><div><strong>∞</strong><span>可重读的页边</span></div></div>
+        </div>
+        <div class="auth-panel">
+          <div class="auth-tabs" role="tablist">
+            <button class="auth-tab is-active" type="button" data-auth-mode="login">登录</button>
+            <button class="auth-tab" type="button" data-auth-mode="register">注册</button>
+          </div>
+          <form id="loginForm" class="auth-form">
+            <label>用户名<input id="loginUsername" autocomplete="username" required placeholder="例如 student01"></label>
+            <label>密码<input id="loginPassword" type="password" autocomplete="current-password" required placeholder="至少 6 位"></label>
+            <button class="primary-button" type="submit">进入阅读工作台</button>
+            <p class="form-hint">还没有账号？切换到注册，先搭建你的书架。</p>
+          </form>
+          <form id="registerForm" class="auth-form" hidden>
+            <label>用户名<input id="registerUsername" autocomplete="username" required minlength="3" maxlength="50" placeholder="3-50 个字符"></label>
+            <label>昵称<input id="registerNickname" required maxlength="50" placeholder="别人怎么称呼你"></label>
+            <label>密码<input id="registerPassword" type="password" autocomplete="new-password" required minlength="6" placeholder="至少 6 位"></label>
+            <button class="primary-button" type="submit">创建我的书架</button>
+          </form>
+        </div>
+      </section>      <div id="workspace" hidden>
+        <section class="view-panel" id="exploreView">
+          <div class="hero">
+            <div class="hero-copy">
+              <p class="eyebrow">public reading room</p>
+              <h1>让想法<br><em>有地方落脚。</em></h1>
+              <p class="hero-lede">浏览公开书架，找到与你的阅读节奏相近的人。点击一张笔记，把它摊开来看。</p>
+            </div>
+            <div class="hero-mark" aria-hidden="true"><span>NW</span><small>read<br>write<br>return</small></div>
+          </div>
+          <div class="search-row">
+            <form class="search-form" id="searchForm">
+              <label class="sr-only" for="searchInput">搜索公开笔记</label>
+              <input id="searchInput" type="search" placeholder="搜索标题或图书名称">
+              <button class="secondary-button" type="submit">搜索</button>
+            </form>
+            <span class="result-meta" id="resultMeta">正在整理书架…</span>
+          </div>
+          <div class="list-head"><div><p class="eyebrow">the open shelf</p><h2 id="listTitle">公开书架</h2></div><span id="listSubtitle" class="list-subtitle">正在加载</span></div>
+          <div class="note-grid" id="notesList" aria-live="polite"></div>
+          <div class="pagination" id="pagination"></div>
+        </section>
+
+        <section class="view-panel" id="myView" hidden>
+          <div class="section-heading">
+            <div><p class="eyebrow">your margin notes</p><h1>我的书架</h1><p>把今天读到的那一页，留在这里。</p></div>
+            <button class="primary-button" id="toggleComposer" type="button">写一篇笔记</button>
+          </div>
+          <form class="note-form" id="noteForm" hidden>
+            <div class="form-heading"><div><p class="eyebrow">new entry</p><h2 id="noteFormTitle">写一篇笔记</h2></div><button class="quiet-button" id="cancelEdit" type="button">收起</button></div>
+            <div class="form-grid">
+              <label>标题<input id="noteTitle" required maxlength="120" placeholder="这句话，值得被记住"></label>
+              <label>图书名称<input id="noteBookName" required maxlength="200" placeholder="正在读哪本书？"></label>
+            </div>
+            <label>正文<textarea id="noteContent" required maxlength="10000" rows="8" placeholder="从这里开始写下你的理解、疑问或一句想留给未来的话。"></textarea></label>
+            <div class="form-actions">
+              <label class="select-label">可见性<select id="noteVisibility"><option value="1">公开 · 放进公共书架</option><option value="0">私密 · 只留给自己</option></select></label>
+              <button class="primary-button" type="submit">保存笔记</button>
+            </div>
+          </form>
+          <div class="list-head compact"><div><p class="eyebrow">in progress</p><h2>写过的页</h2></div><span class="list-subtitle" id="mySubtitle">正在加载</span></div>
+          <div class="note-list" id="myNotesList" aria-live="polite"></div>
+          <div class="pagination" id="myPagination"></div>
+        </section>
+
+        <section class="view-panel" id="likedView" hidden>
+          <div class="section-heading"><div><p class="eyebrow">kept close</p><h1>我点赞的</h1><p>那些让你停了一下、又想起一会儿的笔记。</p></div></div>
+          <div class="note-list" id="likedNotesList" aria-live="polite"></div>
+          <div class="pagination" id="likedPagination"></div>
+        </section>
+
+        <section class="view-panel" id="rankingView" hidden>
+          <div class="section-heading"><div><p class="eyebrow">a shared pulse</p><h1>热度排行</h1><p>被人反复翻开的页，通常有一些值得听见的声音。</p></div></div>
+          <div class="note-list ranking-list" id="rankingNotesList" aria-live="polite"></div>
+          <div class="pagination" id="rankingPagination"></div>
+        </section>
+      </div>
+    </main>
+  </div>
+  <aside class="detail-drawer" id="detailDrawer" aria-hidden="true">
+    <div class="drawer-scrim" data-close-detail></div>
+    <article class="drawer-panel">
+      <button class="drawer-close" type="button" data-close-detail aria-label="关闭笔记">关闭</button>
+      <div id="detailContent"></div>
+    </article>
+  </aside>
+
+  <div class="modal" id="profileModal" hidden>
+    <div class="modal-scrim" data-close-profile></div>
+    <section class="profile-modal-panel" role="dialog" aria-modal="true" aria-labelledby="profileModalTitle">
+      <button class="drawer-close" type="button" data-close-profile aria-label="关闭资料">关闭</button>
+      <p class="eyebrow">your reading identity</p>
+      <h2 id="profileModalTitle">个人资料</h2>
+      <div class="profile-preview"><span class="avatar avatar-large" id="profileAvatar">NW</span><div><strong id="profileName">访客</strong><p id="profileUsername">尚未登录</p></div></div>
+      <form id="profileForm" class="stack-form"><label>昵称<input id="profileNickname" maxlength="50" required></label><button class="primary-button" type="submit">保存昵称</button></form>
+      <form id="avatarForm" class="stack-form"><label>头像图片<input id="avatarInput" type="file" accept=".jpg,.jpeg,.png,image/jpeg,image/png"></label><button class="secondary-button" type="submit">上传头像</button></form>
+    </section>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="/js/api.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html>
